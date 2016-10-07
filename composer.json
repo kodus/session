@@ -1,0 +1,26 @@
+{
+    "name": "kodus/session",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Thomas Pedersen",
+            "email": "thno@fynskemedier.dk"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {},
+    "require-dev": {
+        "codeception/codeception": "^2"
+    },
+    "autoload": {
+        "psr-4": {
+            "Kodus\\Session\\" : "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Kodus\\Session\\Tests\\Unit\\" : "tests/unit"
+        }
+    }
+}

@@ -2,8 +2,10 @@
 
 namespace Kodus\Test\Unit;
 
+use Kodus\Session\SessionModel;
 use Kodus\Session\SessionService;
 use Kodus\Session\SessionStorage;
+use RuntimeException;
 use UnitTester;
 
 class SessionServiceCest
@@ -13,25 +15,26 @@ class SessionServiceCest
         $storage = new MockStorage("test");
         $service = new SessionService($storage);
 
-        $value = "hello";
+        $first_value = "hello";
+        $second_value = "bonjour!";
+
+        $foo = new Foo();
+        $foo->bar = $first_value;
 
         # How to write sessions
-        $service->write(function (Foo $foo) use ($value) {
-            $foo->bar = $value;
-        });
-
-        $service->write(function (Baz $baz) use ($value) {
-            $baz->qux = $value;
-        });
-
-        # How to read sessions
-        $foo = new Foo();
-        $service->read($foo);
+        $service->write($foo);
 
         $baz = new Baz();
-        $service->read($baz);
+        $baz->qux = $first_value;
+        $service->write($baz);
 
-        $I->assertSame($value, $foo->bar);
+        # How to read sessions
+        /** @var Foo $foo */
+        $foo = $service->read(Foo::class);
+        /** @var Baz $baz */
+        $baz = $service->read(Baz::class);
+
+        $I->assertSame($first_value, $foo->bar);
 
         $service->commit();
         $service = new SessionService($storage);
@@ -42,90 +45,106 @@ class SessionServiceCest
         # Clearing
         $service->clear();
 
-        $new_value = "new value";
+        $baz->qux = $second_value;
 
-        $service->write(function (Baz $baz) use ($new_value) {
-            $baz->qux = $new_value;
-        });
-
-        $service->read($baz);
+        $service->write($baz);
 
         $service->commit();
 
-        $I->assertNotEquals($storage->get(Foo::class), $foo);
-        $I->assertEquals($storage->get(Baz::class), $baz);
-        $I->assertSame($new_value, $baz->qux);
+        $I->assertNotEquals($storage->get(Foo::class), $foo,
+            "After clear() and commit(), the object should no longer be stored");
+        $I->assertEquals($storage->get(Baz::class), $baz,
+            "Calling write() after calling clear() should be a valid sequence of actions");
 
         # Flashes
-        $service->flash(function (Foo $foo) use ($new_value) {
-            $foo->bar = $new_value;
-        });
+        $foo->bar = $second_value;
+        $service->write($foo, true);
 
         $service->commit();
 
-        $service->read($foo);
+        /** @var Foo $foo */
+        $foo = $service->read(Foo::class);
 
-        $I->assertEquals($foo->bar, $new_value);
+        $I->assertEquals($foo->bar, $second_value);
 
         $service->commit();
 
-        $service->read($foo);
+        $I->assertFalse($service->has(Foo::class));
 
-        $I->assertNull($foo->bar);
-
+        $exception_happened = false;
+        try {
+            $foo = $service->read(Foo::class);
+        } catch (RuntimeException $e) {
+            $exception_happened = true;
+        }
+        $I->assertTrue($exception_happened);
         # Remove
-        $service->write(function (Foo $foo) use ($value) {
-            $foo->bar = $value;
-        });
+        $foo->bar = $first_value;
+        $service->write($foo);
         $service->commit();
-        $service->read($foo);
-        $I->assertSame($value, $foo->bar);
+
+        /** @var Foo $foo */
+        $foo = $service->read(Foo::class);
+        $I->assertSame($first_value, $foo->bar);
 
         $service->remove(Foo::class);
-        $service->read($foo);
-        $I->assertNull($foo->bar);
+        $I->assertFalse($service->has(Foo::class));
+
+        $exception_happened = false;
+        try {
+            $service->read(Foo::class);
+        } catch (RuntimeException $e) {
+            $exception_happened = true;
+        }
+        $I->assertTrue($exception_happened);
 
         $service->commit();
-        $service->read($foo);
-        $I->assertNull($foo->bar);
+        $I->assertFalse($service->has(Foo::class));
+
+        $exception_happened = false;
+        try {
+            $service->read(Foo::class);
+        } catch (RuntimeException $e) {
+            $exception_happened = true;
+        }
+        $I->assertTrue($exception_happened);
 
         # Remove and subsequent write in same request
-        $service->write(function (Baz $baz) {
-           $baz->qux = "nonsense";
-        });
+        $baz->qux = "gutentag";
+        $service->write($baz);
 
         $service->remove(Baz::class);
 
-        $service->write(function (Baz $baz) use ($value) {
-            $baz->qux = $value;
-        });
+        $baz->qux = $first_value;
+        $service->write($baz);
 
         $service->commit();
 
-        $service->read($baz);
+        /** @var Baz $baz */
+        $baz = $service->read(Baz::class);
 
-        $I->assertSame($value, $baz->qux);
+        $I->assertSame($first_value, $baz->qux);
 
         $service->remove(Baz::class);
 
-        $service->write(function (Baz $baz) use ($new_value) {
-            $baz->qux = $new_value;
-        });
+        $baz->qux = $second_value;
+        $service->write($baz);
 
         $service->commit();
 
-        $service->read($baz);
+        /** @var Baz $baz */
+        $baz = $service->read(Baz::class);
 
-        $I->assertSame($new_value, $baz->qux);
+        $I->assertSame($second_value, $baz->qux);
     }
 }
 
-class Foo
+class Foo extends SessionModel
 {
     public $bar;
 }
 
-class Baz
+class Baz extends SessionModel
 {
     public $qux;
 }
@@ -167,5 +186,10 @@ class MockStorage implements SessionStorage
     public function remove($key)
     {
         unset($this->cache[$key]);
+    }
+
+    public function has($key)
+    {
+        return isset($this->cache[$key]);
     }
 }

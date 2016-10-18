@@ -1,6 +1,7 @@
 <?php
 
 namespace Kodus\Session;
+
 use RuntimeException;
 
 class SessionService implements SessionContainer
@@ -45,21 +46,17 @@ class SessionService implements SessionContainer
         $this->storage = $storage;
     }
 
-    public function write(SessionModel $object, $is_flash = false)
+    public function flash(SessionModel $object)
     {
-        $type = get_class($object);
-
-        unset($this->removed[$type]);
-
-        $this->read_cache[$type] = $object;
-        $this->write_cache[$type] = $object;
-
-        if ($is_flash) {
-            $this->flashed[$type] = $type;
-        }
+        $this->writeDeffered($object, true);
     }
 
-    public function read($type)
+    public function set(SessionModel $object)
+    {
+        $this->writeDeffered($object, false);
+    }
+
+    public function get($type)
     {
         $object = @$this->read_cache[$type] ?: $this->storage->get($type);
 
@@ -75,7 +72,7 @@ class SessionService implements SessionContainer
         return (isset($this->read_cache[$type]) || $this->storage->has($type)) && ! isset($this->removed[$type]);
     }
 
-    public function remove($type)
+    public function unset($type)
     {
         unset($this->read_cache[$type]);
 
@@ -93,6 +90,9 @@ class SessionService implements SessionContainer
         $this->cleared = true;
     }
 
+    /**
+     * TODO change according to eventual Middleware
+     */
     public function commit()
     {
         if ($this->cleared) {
@@ -114,5 +114,25 @@ class SessionService implements SessionContainer
         $this->read_cache = [];
         $this->write_cache = [];
         $this->cleared = false;
+    }
+
+    /**
+     * A deffered write operation. The actual write operation will occure at commit()
+     *
+     * @param SessionModel $object
+     * @param bool         $is_flash
+     */
+    protected function writeDeffered(SessionModel $object, $is_flash = false)
+    {
+        $type = get_class($object);
+
+        unset($this->removed[$type]);
+
+        $this->read_cache[$type] = $object;
+        $this->write_cache[$type] = $object;
+
+        if ($is_flash) {
+            $this->flashed[$type] = $type;
+        }
     }
 }

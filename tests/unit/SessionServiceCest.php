@@ -22,17 +22,17 @@ class SessionServiceCest
         $foo->bar = $first_value;
 
         # How to write sessions
-        $service->write($foo);
+        $service->set($foo);
 
         $baz = new Baz();
         $baz->qux = $first_value;
-        $service->write($baz);
+        $service->set($baz);
 
         # How to read sessions
         /** @var Foo $foo */
-        $foo = $service->read(Foo::class);
+        $foo = $service->get(Foo::class);
         /** @var Baz $baz */
-        $baz = $service->read(Baz::class);
+        $baz = $service->get(Baz::class);
 
         $I->assertSame($first_value, $foo->bar);
 
@@ -47,7 +47,7 @@ class SessionServiceCest
 
         $baz->qux = $second_value;
 
-        $service->write($baz);
+        $service->set($baz);
 
         $service->commit();
 
@@ -58,12 +58,12 @@ class SessionServiceCest
 
         # Flashes
         $foo->bar = $second_value;
-        $service->write($foo, true);
+        $service->flash($foo);
 
         $service->commit();
 
         /** @var Foo $foo */
-        $foo = $service->read(Foo::class);
+        $foo = $service->get(Foo::class);
 
         $I->assertEquals($foo->bar, $second_value);
 
@@ -73,26 +73,26 @@ class SessionServiceCest
 
         $exception_happened = false;
         try {
-            $foo = $service->read(Foo::class);
+            $foo = $service->get(Foo::class);
         } catch (RuntimeException $e) {
             $exception_happened = true;
         }
         $I->assertTrue($exception_happened);
         # Remove
         $foo->bar = $first_value;
-        $service->write($foo);
+        $service->set($foo);
         $service->commit();
 
         /** @var Foo $foo */
-        $foo = $service->read(Foo::class);
+        $foo = $service->get(Foo::class);
         $I->assertSame($first_value, $foo->bar);
 
-        $service->remove(Foo::class);
+        $service->unset(Foo::class);
         $I->assertFalse($service->has(Foo::class));
 
         $exception_happened = false;
         try {
-            $service->read(Foo::class);
+            $service->get(Foo::class);
         } catch (RuntimeException $e) {
             $exception_happened = true;
         }
@@ -103,7 +103,7 @@ class SessionServiceCest
 
         $exception_happened = false;
         try {
-            $service->read(Foo::class);
+            $service->get(Foo::class);
         } catch (RuntimeException $e) {
             $exception_happened = true;
         }
@@ -111,40 +111,40 @@ class SessionServiceCest
 
         # Remove and subsequent write in same request
         $baz->qux = "gutentag";
-        $service->write($baz);
+        $service->set($baz);
 
-        $service->remove(Baz::class);
+        $service->unset(Baz::class);
 
         $baz->qux = $first_value;
-        $service->write($baz);
+        $service->set($baz);
 
         $service->commit();
 
         /** @var Baz $baz */
-        $baz = $service->read(Baz::class);
+        $baz = $service->get(Baz::class);
 
         $I->assertSame($first_value, $baz->qux);
 
-        $service->remove(Baz::class);
+        $service->unset(Baz::class);
 
         $baz->qux = $second_value;
-        $service->write($baz);
+        $service->set($baz);
 
         $service->commit();
 
         /** @var Baz $baz */
-        $baz = $service->read(Baz::class);
+        $baz = $service->get(Baz::class);
 
         $I->assertSame($second_value, $baz->qux);
     }
 }
 
-class Foo extends SessionModel
+class Foo implements SessionModel
 {
     public $bar;
 }
 
-class Baz extends SessionModel
+class Baz implements SessionModel
 {
     public $qux;
 }

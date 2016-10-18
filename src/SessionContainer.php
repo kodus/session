@@ -1,19 +1,38 @@
 <?php
 namespace Kodus\Session;
 
+/**
+ * This interface defines a set of methods for writing and reading session values.
+ *
+ * All actions writing actions to the SessionContainer are cached and deffered to a final commit action.
+ */
 interface SessionContainer
 {
     public function __construct(SessionStorage $storage);
 
     /**
-     * Write an instance of SessionModel to the session storage.
+     * Set the object in the session container state cache.
      *
-     * @param SessionModel $object   The session model to write to storage
-     * @param bool         $is_flash If true, the object stored can only be read in the following request to the server.
+     * @param SessionModel $object The session model to write to storage
      *
      * @return void
      */
-    public function write(SessionModel $object, $is_flash = false);
+    public function set(SessionModel $object);
+
+    /**
+     * Set an object in the SessionContainer state cache and mark it as a "flash" message.
+     *
+     * "Flash" messages will only live through the next request, that returns 2xx HTML response codes.
+     *
+     * That means that you can expect the flash messages to live through a redirect result, so for example if you have
+     * multiple redirects in a POST-Redirect-GET pattern solution, the flash message is still available when you reach
+     * the GET request.
+     *
+     * @param $object
+     *
+     * @return void
+     */
+    public function flash(SessionModel $object);
 
     /**
      * Read the instance of $type from the session storage.
@@ -27,7 +46,7 @@ interface SessionContainer
      *
      * @return mixed
      */
-    public function read($type);
+    public function get($type);
 
     /**
      * @param string $type The class name of the session model to check
@@ -43,7 +62,7 @@ interface SessionContainer
      *
      * @return void
      */
-    public function remove($type);
+    public function unset($type);
 
     /**
      * Clear all objects stored in session on next commit().
@@ -55,7 +74,7 @@ interface SessionContainer
     public function clear();
 
     /**
-     * All changes to the session done by calling write(), remove() or clear() are committed to the session storage.*
+     * All changes to the session done by calling write(), remove() or clear() are committed to the session storage.
      * @return void
      */
     public function commit();

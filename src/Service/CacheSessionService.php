@@ -10,6 +10,7 @@ use Psr\SimpleCache\CacheInterface;
 use RuntimeException;
 
 // TODO clean up the logic of this class - for now we care about passing tests.
+// TODO more handling of session ttl than cookie lifetime.
 class CacheSessionService implements SessionService
 {
     const SESSION_COOKIE_KEY    = "kodus-session";
@@ -77,30 +78,23 @@ class CacheSessionService implements SessionService
 
     public function get($type)
     {
-        $object = @$this->read_cache[$type] ?: ($this->cleared ? null : $this->storage->get($this->storageIndexFromType($type)));
+        $object = $this->read_cache[$type] ?? $this->getFromStorage($type);
 
-        if (is_null($object) || isset($this->removed[$type])) {
-            throw new RuntimeException("Session model object of the type {$type} could not be found in session. Make sure to check to use SessionService::has() before SessionService::read()");
+        if (is_null($object)) {
+            throw new RuntimeException("Instance of SessionModel {$type} not found in session!");
         }
-
-        $this->read_cache[$type] = $object;
 
         return $object;
     }
 
     public function has($type)
     {
-        if ($this->cleared) {
-            return isset($this->read_cache[$type]) && ! isset($this->removed[$type]);
-        }
-
-        return ((isset($this->read_cache[$type]) || $this->storage->exists($this->storageIndexFromType($type)))) && ! isset($this->removed[$type]);
+        return isset($this->read_cache[$type]) || $this->existsInStorage($type);
     }
 
     public function unset($type)
     {
         unset($this->read_cache[$type]);
-
         unset($this->write_cache[$type]);
 
         $this->removed[$type] = $type;
@@ -131,15 +125,15 @@ class CacheSessionService implements SessionService
         $flashes = $this->storage->get(self::FLASHES_STORAGE_INDEX) ?: [];
 
         foreach ($flashes as $type) {
-            $this->storage->delete($this->storageIndexFromType($type));
+            $this->storage->delete($this->storageKeyFromType($type));
         }
 
         foreach ($this->removed as $type) {
-            $this->storage->delete($this->storageIndexFromType($type));
+            $this->storage->delete($this->storageKeyFromType($type));
         }
 
         foreach ($this->write_cache as $type => $object) {
-            $this->storage->set($this->storageIndexFromType($type), $object);
+            $this->storage->set($this->storageKeyFromType($type), $object);
         }
 
         $this->storage->set(self::FLASHES_STORAGE_INDEX, $this->flashed);
@@ -148,6 +142,7 @@ class CacheSessionService implements SessionService
         $this->write_cache = [];
         $this->cleared = false;
 
+        // TODO move this to a session cookie component with an interface?!
         $cookie_string = sprintf(
             self::SESSION_COOKIE_KEY . "=%s; Max-Age=%s; Expires=%s; Path=/;",
             $this->session_id,
@@ -182,7 +177,36 @@ class CacheSessionService implements SessionService
         }
     }
 
-    protected function storageIndexFromType($type)
+    protected function existsInStorage($type)
+    {
+        if ($this->cleared || isset($this->removed[$type])) {
+            return false;
+        }
+
+        $storage_key = $this->storageKeyFromType($type);
+
+        return $this->storage->exists($storage_key);
+
+    }
+
+    protected function getFromStorage($type)
+    {
+        if ($this->cleared || isset($this->removed[$type])) {
+            return null;
+        }
+
+        $storage_key = $this->storageKeyFromType($type);
+
+        $object = $this->storage->get($storage_key);
+
+        if ($object) {
+            $this->read_cache[$type] = $object;
+        }
+
+        return $object;
+    }
+
+    protected function storageKeyFromType($type)
     {
         return self::SESSION_INDEX_PREFIX . $this->session_id . ".$type";
     }

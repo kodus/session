@@ -1,138 +1,72 @@
 <?php
-
 namespace Kodus\Session;
 
-use RuntimeException;
-
-class SessionService implements SessionContainer
+/**
+ * This interface defines a set of methods for writing and reading session values.
+ *
+ * All actions writing actions to the SessionService are cached and deffered to a final commit action.
+ */
+interface SessionService
 {
-    /**
-     * @const string
-     */
-    const FLASHES_STORAGE_INDEX = "kodus.session.flashes";
+    public function set(SessionModel $object);
 
     /**
-     * @var SessionStorage
-     */
-    private $storage;
-
-    /**
-     * @var array
-     */
-    private $write_cache = [];
-
-    /**
-     * @var array
-     */
-    private $read_cache = [];
-
-    /**
-     * @var array
-     */
-    private $removed = [];
-
-    /**
-     * @var bool
-     */
-    private $cleared = false;
-
-    /**
-     * @var array
-     */
-    private $flashed = [];
-
-    public function __construct(SessionStorage $storage)
-    {
-        $this->storage = $storage;
-    }
-
-    public function flash(SessionModel $object)
-    {
-        $this->writeDeffered($object, true);
-    }
-
-    public function set(SessionModel $object)
-    {
-        $this->writeDeffered($object, false);
-    }
-
-    public function get($type)
-    {
-        $object = @$this->read_cache[$type] ?: $this->storage->get($type);
-
-        if (is_null($object) || isset($this->removed[$type])) {
-            throw new RuntimeException("Session model object of the type {$type} could not be found in session. Make sure to check to use SessionContainer::has() before SessionContainer::read()");
-        }
-
-        return $object;
-    }
-
-    public function has($type)
-    {
-        return (isset($this->read_cache[$type]) || $this->storage->has($type)) && ! isset($this->removed[$type]);
-    }
-
-    public function unset($type)
-    {
-        unset($this->read_cache[$type]);
-
-        unset($this->write_cache[$type]);
-
-        $this->removed[$type] = $type;
-    }
-
-    public function clear()
-    {
-        foreach ($this->write_cache as $type => $object) {
-            unset($this->write_cache[$type]);
-        }
-
-        $this->cleared = true;
-    }
-
-    /**
-     * TODO change according to eventual Middleware
-     */
-    public function commit()
-    {
-        if ($this->cleared) {
-            $this->storage->clear();
-        }
-
-        $flashes = $this->storage->get(self::FLASHES_STORAGE_INDEX) ?: [];
-
-        foreach ($flashes as $type) {
-            $this->storage->remove($type);
-        }
-
-        foreach ($this->write_cache as $type => $object) {
-            $this->storage->set($type, $object);
-        }
-
-        $this->storage->set(self::FLASHES_STORAGE_INDEX, $this->flashed);
-
-        $this->read_cache = [];
-        $this->write_cache = [];
-        $this->cleared = false;
-    }
-
-    /**
-     * A deffered write operation. The actual write operation will occure at commit()
+     * Set an object in the SessionService state cache and mark it as a "flash" message.
      *
-     * @param SessionModel $object
-     * @param bool         $is_flash
+     * "Flash" messages will only live through the next request, that returns 2xx HTML response codes.
+     *
+     * That means that you can expect the flash messages to live through a redirect result, so for example if you have
+     * multiple redirects in a POST-Redirect-GET pattern solution, the flash message is still available when you reach
+     * the GET request.
+     *
+     * @param $object
+     *
+     * @return void
      */
-    protected function writeDeffered(SessionModel $object, $is_flash = false)
-    {
-        $type = get_class($object);
+    public function flash(SessionModel $object);
 
-        unset($this->removed[$type]);
+    /**
+     * Read the instance of $type from the session storage.
+     *
+     * If the storage does not have an instance of that type, the SessionService implementation SHOULD throw a
+     * RuntimeException, rather than return null.
+     *
+     * This method should only be called with parameter $type, if SessionService::has($type) returns true
+     *
+     * @param string $type The class name of the object to be read from the session storage
+     *
+     * @return mixed
+     */
+    public function get($type);
 
-        $this->read_cache[$type] = $object;
-        $this->write_cache[$type] = $object;
+    /**
+     * @param string $type The class name of the session model to check
+     *
+     * @return boolean Returns true if a session model of with class name matching $type is stored in session.
+     */
+    public function has($type);
 
-        if ($is_flash) {
-            $this->flashed[$type] = $type;
-        }
-    }
+    /**
+     * Remove any instance of the class $type from the session.
+     *
+     * @param string $type
+     *
+     * @return void
+     */
+    public function unset($type);
+
+    /**
+     * Clear all objects stored in session on next commit().
+     *
+     * Any subsequent writes to the session are valid and stored on commit().
+     *
+     * @return void
+     */
+    public function clear();
+
+    /**
+     * All changes to the session done by calling write(), remove() or clear() are committed to the session storage.
+     * @return void
+     */
+    public function commit();
 }

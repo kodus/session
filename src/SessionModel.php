@@ -5,7 +5,7 @@ namespace Kodus\Session;
 /**
  * SessionModel is a Marker Interface. This means that it's purpose is to mark a class as being a SessionModel.
  *
- * The interface SessionContainer will only write objects of the type SessionModel to the SessionStorage.
+ * The interface SessionService will only write objects of the type SessionModel to the SessionStorage.
  *
  * This means that you cannot write any objects to the session. The class must be specficially marked as
  * "implements SessionModel".

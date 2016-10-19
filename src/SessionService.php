@@ -63,10 +63,4 @@ interface SessionService
      * @return void
      */
     public function clear();
-
-    /**
-     * All changes to the session done by calling write(), remove() or clear() are committed to the session storage.
-     * @return void
-     */
-    public function commit();
 }

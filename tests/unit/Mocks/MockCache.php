@@ -9,7 +9,7 @@ class MockCache implements CacheInterface
     /**
      * @var array
      */
-    private $cache;
+    private $cache = [];
 
     public function delete($key)
     {

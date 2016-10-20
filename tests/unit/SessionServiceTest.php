@@ -1,42 +1,22 @@
 <?php
 
-namespace Kodus\Tests\Unit;
+namespace Kodus\Session\Tests\Unit;
 
 use Closure;
 use Exception;
-use Kodus\Session\Service\CacheSessionService;
+use Kodus\Session\SessionService;
 use Kodus\Session\Tests\Unit\Mocks\BarSessionModel;
 use Kodus\Session\Tests\Unit\Mocks\FooSessionModel;
-use Kodus\Session\Tests\Unit\Mocks\MockCache;
 use RuntimeException;
 use UnitTester;
 use Zend\Diactoros\Response;
 
-class CacheSessionServiceCest
+
+abstract class SessionServiceTest
 {
-    /**
-     * @var MockCache
-     */
-    private $cache;
-
-    public function __construct()
-    {
-        $this->cache = new MockCache();
-    }
-
-    public function _before(UnitTester $I)
-    {
-        $this->cache = new MockCache();
-    }
-
-    public function _after(UnitTester $I)
-    {
-        codecept_debug($this->cache);
-    }
-
     public function setAndGet(UnitTester $I)
     {
-        $I->wantToTest("Basic get and set functionality of " . CacheSessionService::class);
+        $I->wantToTest("Basic get and set functionality");
 
         $service = $this->createSessionService();
 
@@ -65,9 +45,7 @@ class CacheSessionServiceCest
         $I->assertEquals($bar_session, $service->get(BarSessionModel::class),
             "It should be possible to get models set before committing to storage");
 
-        $session_id = $this->commit($service);
-
-        $service = $this->createSessionService($session_id); //New service - same cache
+        $service = $this->emulateNextRequest($service);
 
         $I->assertTrue($service->has(FooSessionModel::class), "After setting X SessionService::has(X) returns true");
         $I->assertTrue($service->has(BarSessionModel::class), "After setting X SessionService::has(X) returns true");
@@ -96,16 +74,14 @@ class CacheSessionServiceCest
         $service->set($foo_session);
         $service->set($bar_session);
 
-        $session_id = $this->commit($service);
-
-        $service = $this->createSessionService($session_id); // New service - same cache
+        $service = $this->emulateNextRequest($service);
 
         $service->clear();
 
         $I->assertFalse($service->has(FooSessionModel::class),
-            "Immediately after calling SessionService::clear(), SessionService::has(X) should false for all X");
+            "Immediately after calling SessionService::clear(), SessionService::has(X) should return false for all X");
         $I->assertFalse($service->has(BarSessionModel::class),
-            "Immediately after calling SessionService::clear(), SessionService::has(X) should false for all X");
+            "Immediately after calling SessionService::clear(), SessionService::has(X) should return false for all X");
 
         $I->assertTrue(
             $this->catchException(RuntimeException::class, function () use ($service) {
@@ -113,9 +89,7 @@ class CacheSessionServiceCest
             }),
             "Calling get for a session model not stored in session, should result in a RuntimeException");
 
-        $session_id = $this->commit($service);
-
-        $service = $this->createSessionService($session_id); // New service - same cache
+        $service = $this->emulateNextRequest($service);
 
         $I->assertFalse($service->has(FooSessionModel::class),
             "Immediately after calling SessionService::clear(), SessionService::has(X) should false for all X");
@@ -129,9 +103,6 @@ class CacheSessionServiceCest
             "Calling get for a session model not stored in session, should result in a RuntimeException");
     }
 
-    /**
-     * @param UnitTester $I
-     */
     public function flashSessions(UnitTester $I)
     {
         $I->wantToTest("Flash session functionality");
@@ -147,10 +118,9 @@ class CacheSessionServiceCest
         $service->flash($foo_session);
 
         $service->flash($bar_session);
-        $service->set($bar_session); //Make sure that you can override flash message with regular message
+        $service->set($bar_session); //Make sure that you can override a flash message with a regular message
 
-        $session_id = $this->commit($service);
-        $service = $this->createSessionService($session_id); //New service - same storage
+        $service = $this->emulateNextRequest($service);
 
         $I->assertTrue($service->has(FooSessionModel::class),
             "First request after committing should contain flashed session object");
@@ -160,8 +130,7 @@ class CacheSessionServiceCest
         $I->assertEquals($foo_session, $service->get(FooSessionModel::class));
         $I->assertEquals($bar_session, $service->get(BarSessionModel::class));
 
-        $session_id = $this->commit($service);
-        $service = $this->createSessionService($session_id); //New service - same storage
+        $service = $this->emulateNextRequest($service);
 
         $I->assertFalse($service->has(FooSessionModel::class),
             "In the second request, the flash session object is no longer available");
@@ -171,7 +140,21 @@ class CacheSessionServiceCest
         $I->assertEquals($bar_session, $service->get(BarSessionModel::class),
             "In the second request, the regular session object is still available");
 
-        //TODO add test for 3xx responses
+        $service->flash($foo_session);
+
+        $service = $this->emulateNextRequest($service);
+
+        $service = $this->emulateNextRequest($service, 302);
+        $service = $this->emulateNextRequest($service, 301);
+        $service = $this->emulateNextRequest($service, 500);
+
+        $I->assertTrue($service->has(FooSessionModel::class),
+            "The flash messages should stay in the session storage untill the first succesful request");
+
+        $service = $this->emulateNextRequest($service);
+
+        $I->assertFalse($service->has(FooSessionModel::class),
+            "After the first succesfull request the flash message dissapears");
     }
 
     public function clearAndSetNewStuff(UnitTester $I)
@@ -189,8 +172,7 @@ class CacheSessionServiceCest
 
         $service->set($foo_session);
 
-        $session_id = $this->commit($service);
-        $service = $this->createSessionService($session_id); //New service - same storage
+        $service = $this->emulateNextRequest($service);
 
         $bar_session = new BarSessionModel();
         $bar_session->qux = $value_2;
@@ -209,8 +191,7 @@ class CacheSessionServiceCest
         $I->assertEquals($foo_session, $service->get(FooSessionModel::class),
             "FooSessionModel should reflect the most recent state stored to SessionService");
 
-        $session_id = $this->commit($service);
-        $service = $this->createSessionService($session_id); //New service - same storage
+        $service = $this->emulateNextRequest($service);
 
         $I->assertTrue($service->has(FooSessionModel::class),
             "FooSessionModel was added after clear() and should be available in next request");
@@ -249,8 +230,7 @@ class CacheSessionServiceCest
 
         $service->set($foo_session);
 
-        $session_id = $this->commit($service);
-        $service = $this->createSessionService($session_id); //New service - same storage
+        $service = $this->emulateNextRequest($service);
 
         $I->assertTrue($service->has(FooSessionModel::class), "FooSessionModel was added before commit()");
         $I->assertTrue($service->has(BarSessionModel::class), "BarSessionModel was added before commit()");
@@ -259,8 +239,7 @@ class CacheSessionServiceCest
         $I->assertFalse($service->has(BarSessionModel::class),
             "SessionService::has(X) should return false after SessionService::unset(X) even if it is stored in SessionStorage still");
 
-        $session_id = $this->commit($service);
-        $service = $this->createSessionService($session_id); //New service - same storage
+        $service = $this->emulateNextRequest($service);
 
         $I->assertFalse($service->has(BarSessionModel::class),
             "SessionService::has(X) should return false after SessionService::unset(X)");
@@ -268,22 +247,19 @@ class CacheSessionServiceCest
 
     public function multipleSessions(UnitTester $I)
     {
-        $service = $this->createSessionService();
+        $I->wantToTest("Storing multiple sessions in same storage");
+
+        $service_1 = $this->createSessionService();
         $foo_session = new FooSessionModel();
-        $service->set($foo_session);
+        $service_1->set($foo_session);
 
-        $session_1_id = $this->commit($service);
+        $service_1 = $this->emulateNextRequest($service_1);
 
-        $service = $this->createSessionService();
+        $service_2 = $this->createSessionService();
         $bar_session = new BarSessionModel();
-        $service->set($bar_session);
+        $service_2->set($bar_session);
 
-        $session_2_id = $this->commit($service);
-
-        $I->assertNotEquals($session_1_id, $session_2_id);
-
-        $service_1 = $this->createSessionService($session_1_id);
-        $service_2 = $this->createSessionService($session_2_id);
+        $service_2 = $this->emulateNextRequest($service_2);
 
         $I->assertTrue($service_1->has(FooSessionModel::class));
         $I->assertFalse($service_1->has(BarSessionModel::class));
@@ -292,39 +268,23 @@ class CacheSessionServiceCest
         $I->assertTrue($service_2->has(BarSessionModel::class));
     }
 
-    protected function commit(CacheSessionService $service, $response_code = 200)
-    {
-        $response = new Response('php://temp', $response_code);
+    /**
+     * @param SessionService $service       The session service that should be progressed to next request
+     * @param int            $response_code Emulate the response code for the current request to be this value.
+     *
+     * @return SessionService
+     */
+    abstract protected function emulateNextRequest(SessionService $service, $response_code = 200);
 
-        $response = $service->commit($response);
-
-        $session_id = null;
-
-        foreach ($response->getHeader("set-cookie") as $cookie_string) {
-            if (strpos($cookie_string, CacheSessionService::SESSION_COOKIE_KEY . "=") === 0) {
-
-                codecept_debug($cookie_string);
-
-                $cookie_parts = explode(";", $cookie_string);
-                $key_value = explode("=", $cookie_parts[0]);
-                $session_id = $key_value[1];
-
-                break;
-            }
-        }
-
-        return $session_id;
-    }
 
     /**
      * @param string $session_id
      *
-     * @return CacheSessionService
+     * @param int    $session_ttl
+     *
+     * @return SessionService
      */
-    protected function createSessionService($session_id = null)
-    {
-        return new CacheSessionService($this->cache, 3600, $session_id);
-    }
+    abstract protected function createSessionService($session_id = null, $session_ttl = 3600);
 
     /**
      * @param string  $type    The fully qualified class name of the exception to check for.

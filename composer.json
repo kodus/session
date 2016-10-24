@@ -11,7 +11,8 @@
     "minimum-stability": "dev",
     "require": {
         "php": "^7.0",
-        "psr/http-message": "^1.0"
+        "psr/http-message": "^1.0",
+        "http-interop/http-middleware": "^0.2.0"
     },
     "require-dev": {
         "codeception/codeception": "^2",

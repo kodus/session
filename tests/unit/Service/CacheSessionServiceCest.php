@@ -7,12 +7,12 @@ use Kodus\Session\Service\CacheSessionService;
 use Kodus\Session\SessionService;
 use Kodus\Session\Tests\Unit\Mocks\FooSessionModel;
 use Kodus\Session\Tests\Unit\Mocks\MockCache;
-use Kodus\Session\Tests\Unit\Mocks\StaticTimeCacheSessionService;
+use Kodus\Session\Tests\Unit\Mocks\CacheSessionServiceMock;
 use Kodus\Session\Tests\Unit\SessionServiceTest;
-use Psr\Http\Message\ResponseInterface;
 use RuntimeException;
 use UnitTester;
 use Zend\Diactoros\Response;
+use Zend\Diactoros\ServerRequest;
 
 class CacheSessionServiceCest extends SessionServiceTest
 {
@@ -21,24 +21,13 @@ class CacheSessionServiceCest extends SessionServiceTest
      */
     private $cache;
 
-    /**
-     * @var CacheSessionService[]
-     */
-    private $services = [];
-
     public function _before(UnitTester $I)
     {
         $this->cache = new MockCache();
     }
 
-    public function _after(UnitTester $I)
-    {
-        codecept_debug($this->cache);
-    }
-
     /**
-     *
-     * Uses StaticTimeCacheSessionService, that is located in the test namespace to test the cookie string.
+     * Uses CacheSessionServiceMock, that is located in the test namespace to test the cookie string.
      *
      * The cookie string changes according to the value returned by time().
      *
@@ -47,7 +36,7 @@ class CacheSessionServiceCest extends SessionServiceTest
      * CacheSessionService wraps the time() function into a method of the same name. This allows us to make a simple
      * extension that overrides this value, when we need to know it for testing.
      *
-     * If the attribute StaticTimeCacheSessionService::time is set to the int 127, then the functionality will act as if
+     * If the attribute CacheSessionServiceMock::time is set to the int 127, then the functionality will act as if
      * time() is always returning 127.
      *
      * @param UnitTester $I
@@ -56,9 +45,7 @@ class CacheSessionServiceCest extends SessionServiceTest
     {
         $I->wantToTest("Session cookies");
 
-        $service = new StaticTimeCacheSessionService($this->cache, 3600);
-
-        $service->time = 10000;
+        $service = $this->createSessionServiceMock(null, 3600, 10000);
 
         $response = $service->commit(new Response("php://temp", 200));
 
@@ -76,7 +63,7 @@ class CacheSessionServiceCest extends SessionServiceTest
     }
 
     /**
-     * Like the sessionCookie() test, this uses the test extension StaticTimeCacheSessionService, to control the current
+     * Like the sessionCookie() test, this uses the test extension CacheSessionServiceMock, to control the current
      * time, in order to test time dependent functionality.
      *
      * @see CacheSessionServiceCest::sessionCookie()
@@ -87,26 +74,19 @@ class CacheSessionServiceCest extends SessionServiceTest
     {
         $I->wantToTest("Session lifetime");
 
-        $service = new StaticTimeCacheSessionService($this->cache, 3600);
+        $service = $this->createSessionService();
+        $service->set(new FooSessionModel());
 
-        $foo_session = new FooSessionModel();
-        $foo_session->baz = "Hello session world";
-
-        $service->set($foo_session);
-
-        $service->commit(new Response("php://temp", 200));
-
-        $session_id = $service->getSessionID();
-
-        $service = new StaticTimeCacheSessionService($this->cache, 3600, $session_id);
-
-        $I->assertTrue($service->has(FooSessionModel::class));
+        $service->commit(new Response());
 
         // Two hours passes
-        $service = new StaticTimeCacheSessionService($this->cache, 3600, $session_id, 7200);
+        $session_id = $service->getSessionID();
+        $service = $this->createSessionServiceMock($session_id, 3600, 7200);
 
-        $I->assertNotEquals($session_id, $service->getSessionID(), "The previous session expired, so this should be a new session");
-        $I->assertFalse($service->has(FooSessionModel::class), "The new session shouldn't remember anything from the last session");
+        $I->assertNotEquals($session_id, $service->getSessionID(),
+            "The previous session expired, so this should be a new session");
+        $I->assertFalse($service->has(FooSessionModel::class),
+            "The new session shouldn't remember anything from the last session");
     }
 
     /**
@@ -115,39 +95,44 @@ class CacheSessionServiceCest extends SessionServiceTest
     protected function emulateNextRequest(SessionService $service, $response_code = 200)
     {
         if (! $service instanceof CacheSessionService) {
-            throw new RuntimeException("This implementation is for CacheSessionService, not " . get_class($service));
+            throw new RuntimeException("This test implementation is for CacheSessionService, not " . get_class($service));
         }
+
+        $response = new Response('php://temp', $response_code);
+
+        $service->commit($response);
 
         $session_id = $service->getSessionID();
 
-        $this->commit($service, $response_code);
+        $new_service = $this->createSessionService($session_id);
 
-        $this->services[$session_id] = $this->createSessionService($session_id);
-
-        return $this->services[$session_id];
+        return $new_service;
     }
 
     protected function createSessionService($session_id = null, $session_ttl = 3600)
     {
-        $service = new CacheSessionService($this->cache, $session_ttl, $session_id);
-
-        $this->services[$service->getSessionID()] = $service;
-
-        return $service;
+        return $this->createSessionServiceMock($session_id, $session_ttl);
     }
 
     /**
-     * @param CacheSessionService $service
-     * @param int                 $response_code
+     * @param string|null $session_id
+     * @param int         $session_ttl
+     * @param int         $static_time
      *
-     * @return ResponseInterface
+     * @return CacheSessionService
      */
-    protected function commit(CacheSessionService $service, $response_code = 200)
+    protected function createSessionServiceMock($session_id = null, $session_ttl = 3600, $static_time = 0)
     {
-        $response = new Response('php://temp', $response_code);
+        $cookies = [CacheSessionServiceMock::COOKIE_KEY => $session_id];
 
-        $response = $service->commit($response);
+        $request = new ServerRequest([], [], "/", "GET", 'php://input', [], $cookies);
 
-        return $response;
+        $service = new CacheSessionServiceMock($this->cache, $session_ttl);
+
+        $service->time = $static_time;
+
+        $service->begin($request);
+
+        return $service;
     }
 }

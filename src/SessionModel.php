@@ -16,7 +16,7 @@ namespace Kodus\Session;
  *
  * This critique does not apply to the SessionModel however, because SessionModel implementations should limit themselves
  * to be just that: a session model. Added responsibility breaks the Single Responsibility principle. If you make a
- * subclass of a session model class, then that should be a session model too.
+ * subclass of a session model class, then that should be a session model also.
  *
  * Example:
  * If you have an object of the type User, and you need to have the ID and email of that user in session,

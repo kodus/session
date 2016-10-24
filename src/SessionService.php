@@ -63,4 +63,11 @@ interface SessionService
      * @return void
      */
     public function clear();
+
+    /**
+     * Returns the ID of the current session as a string.
+     *
+     * @return string
+     */
+    public function getSessionID();
 }

@@ -6,6 +6,7 @@ use Kodus\Session\Components\UUID;
 use Kodus\Session\SessionModel;
 use Kodus\Session\SessionService;
 use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
 use Psr\SimpleCache\CacheInterface;
 use RuntimeException;
 
@@ -65,18 +66,12 @@ class CacheSessionService implements SessionService
      * CacheSessionService constructor.
      *
      * @param CacheInterface $storage     The cache provider to store session data in.
-     * @param int            $session_ttl Session lifetime in seconds
-     * @param string|null    $session_id  Session ID string, or null if starting new session
+     * @param int            $session_ttl Session lifetime in seconds - Default: two weeks
      */
-    public function __construct(CacheInterface $storage, $session_ttl = 60 * 60 * 24 * 14, $session_id = null)
+    public function __construct(CacheInterface $storage, $session_ttl = 1209600)
     {
         $this->storage = $storage;
-        $this->session_id = $session_id;
         $this->session_ttl = $session_ttl;
-
-        if (! $this->sessionIsActive($this->session_id)) {
-            $this->session_id = base64_encode(UUID::create());
-        }
     }
 
     public function flash(SessionModel $object)
@@ -123,14 +118,28 @@ class CacheSessionService implements SessionService
         $this->cleared = true;
     }
 
-    /**
-     * TODO part of SessionService interface?
-     *
-     * Return the current session ID string
-     */
     public function getSessionID()
     {
         return $this->session_id;
+    }
+
+    /**
+     * Initiate the session from the cookie params found in the server request
+     *
+     * @param ServerRequestInterface $request
+     */
+    public function begin(ServerRequestInterface $request)
+    {
+        $this->clearState();
+
+        $cookies = $request->getCookieParams();
+        $session_id = $cookies[CacheSessionService::COOKIE_KEY] ?? null;
+
+        if (! $this->sessionIsActive($session_id)) {
+            $session_id = base64_encode(UUID::create());
+        }
+
+        $this->session_id = $session_id;
     }
 
     /**
@@ -143,41 +152,47 @@ class CacheSessionService implements SessionService
     public function commit(ResponseInterface $response)
     {
         if ($this->cleared) {
+            # CLEAR STORAGE (if clear() was called during the request)
             $this->storage->clear();
-        }
-        $flashes = $this->storage->get(self::FLASHES_STORAGE_INDEX) ?: [];
+        } else {
+            # CLEAR OLD FLASHES AND MARK NEW FLASHES FOR NEXT REQUEST.
+            # (If redirect or error response code, then keep old flashes for next request).
+            $flashes = $this->storage->get(self::FLASHES_STORAGE_INDEX) ?: [];
 
-        //If the response is a redirect or error, keep the current flashes in memory, otherwise clean them up.
-        if ($response->getStatusCode() < 300) {
-            foreach ($flashes as $type) {
+            if ($response->getStatusCode() < 300) {
+                foreach ($flashes as $type) {
+                    $this->storage->delete($this->storageKeyFromType($type));
+                }
+                $this->storage->set(self::FLASHES_STORAGE_INDEX, $this->flashed);
+            } else {
+                $this->storage->set(self::FLASHES_STORAGE_INDEX, array_merge($flashes, $this->flashed));
+            }
+
+            # DELETE SESSION MODELS THAT WERE REMOVED DURING THIS REQUEST
+            foreach ($this->removed as $type) {
                 $this->storage->delete($this->storageKeyFromType($type));
             }
-            $this->storage->set(self::FLASHES_STORAGE_INDEX, $this->flashed);
-        } else {
-            $this->storage->set(self::FLASHES_STORAGE_INDEX, array_merge($flashes, $this->flashed));
         }
 
-        foreach ($this->removed as $type) {
-            $this->storage->delete($this->storageKeyFromType($type));
-        }
-
+        # WRITE OPERATIONS
         foreach ($this->write_cache as $type => $object) {
             $this->storage->set($this->storageKeyFromType($type), $object);
         }
 
+        # SET EXPIRATION TIME FOR SESSION ID IN STORAGE.
         $this->storage->set(self::SESSION_EXPIRATION_KEY . $this->session_id, $this->time() + $this->session_ttl);
 
-        $this->read_cache = [];
-        $this->write_cache = [];
-        $this->cleared = false;
-
+        # ADD COOKIE TO RESPONSE.
         $response = $this->addSessionCookie($response);
+
+        # CLEAR STATE FOR NEXT REQUEST.
+        $this->clearState();
 
         return $response;
     }
 
     /**
-     * A deffered write operation. The actual write operation will occure at commit()
+     * A deffered write operation. The actual write operation will occur at commit()
      *
      * @param SessionModel $object
      * @param bool         $is_flash
@@ -294,8 +309,7 @@ class CacheSessionService implements SessionService
             return false;
         }
 
-        $expiration_time = $this->storage->get(self::SESSION_EXPIRATION_KEY . $this->session_id);
-
+        $expiration_time = $this->storage->get(self::SESSION_EXPIRATION_KEY . $session_id);
         if (is_int($expiration_time) && $expiration_time > $this->time()) {
             return true;
         }
@@ -316,5 +330,19 @@ class CacheSessionService implements SessionService
     protected function time()
     {
         return time();
+    }
+
+    /**
+     * Clear all internal state. Should be called as the first thing in begin() and the last thing in commit().
+     *
+     * @return void
+     */
+    private function clearState()
+    {
+        $this->cleared = false;
+        $this->read_cache = [];
+        $this->write_cache = [];
+        $this->removed = [];
+        $this->flashed = [];
     }
 }

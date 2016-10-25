@@ -5,6 +5,7 @@ namespace Kodus\Session\Tests\Unit\Middleware;
 
 use Kodus\Session\Middleware\CacheSessionMiddleware;
 use Kodus\Session\Service\CacheSessionService;
+use Kodus\Session\Tests\Unit\Mocks\CacheSessionServiceMock;
 use Kodus\Session\Tests\Unit\Mocks\DelegateMock;
 use Kodus\Session\Tests\Unit\Mocks\FooSessionModel;
 use Kodus\Session\Tests\Unit\Mocks\MockCache;
@@ -16,29 +17,42 @@ class CacheSessionMiddlewareCest
 {
     public function test(UnitTester $I)
     {
+        $I->wantToTest("CacheSessionMiddleware functionality");
+
         $cache = new MockCache();
-        $session_service = new CacheSessionService($cache);
-        $middleware = new CacheSessionMiddleware($session_service);
+        $service = new CacheSessionServiceMock($cache, 3600);
+        $delegate = new DelegateMock();
+        $middleware = new CacheSessionMiddleware($service); // Subject under test
 
-        $foo = new FooSessionModel();
-        $foo->baz = "hello";
+        $I->assertFalse($service->has(FooSessionModel::class), "Before the request has been run, nothing is in cache");
 
-        $delegate = new DelegateMock(function () use ($session_service, $foo) {
-           $session_service->set($foo);
+        // When the middleware is called with this delegate mock, the "next" middleware will set a FooSessionModel
+        // instance in session.
+        $delegate->setNextClosure(function () use ($service) {
+            $foo = new FooSessionModel();
+            $foo->baz = "hello middleware";
+            $service->set($foo);
         });
 
-        $request = new ServerRequest([], [], "/foo", "GET");
-        $middleware->process($request, $delegate);
+        $response = $middleware->process(new ServerRequest(), $delegate);
 
-        $session_id = $session_service->getSessionID();
+        $I->assertTrue($service->has(FooSessionModel::class),
+            "After running the session middleware the changes should be visible in the service");
 
-        $delegate->stuff_to_do = function () use ($session_service, $foo, $I) {
-            $I->assertTrue($session_service->has(FooSessionModel::class));
-            $I->assertEquals($foo, $session_service->get(FooSessionModel::class));
-        };
+        /** @var FooSessionModel $foo */
+        $foo = $service->get(FooSessionModel::class);
 
-        $request = new ServerRequest([], [], "/foo", "GET", 'php://input', [], [CacheSessionService::COOKIE_KEY => $session_id]);
+        $I->assertEquals("hello middleware", $foo->baz, "Checking the value of FooSessionModel was stored correctly");
 
-        $middleware->process($request, $delegate);
+        $I->assertTrue($response->hasHeader("set-cookie"));
+
+        $headers = $response->getHeader("set-cookie");
+
+        $I->assertEquals(1, count($headers), "Only one cookie header should be set from the session");
+        $I->assertNotEmpty($service->getSessionID(), "Should have a non-empty session id");
+
+        $expected_cookie = CacheSessionService::COOKIE_KEY . "=" . $service->getSessionID() . "; Max-Age=3600; Expires=3600; Path=/;";
+
+        $I->assertSame($expected_cookie, $headers[0], "Cookie should match expected values and session ID");
     }
 }

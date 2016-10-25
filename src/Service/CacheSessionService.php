@@ -242,7 +242,6 @@ class CacheSessionService implements SessionService
      * return the object.
      *
      * What is meant by "APPEARS to be in cache"?:
-     *
      * @see CacheSessionService::existsInStorage
      *
      * @param string $type

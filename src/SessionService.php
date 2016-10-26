@@ -1,4 +1,5 @@
-<?php
+<?php declare(strict_types = 1);
+
 namespace Kodus\Session;
 
 /**
@@ -8,6 +9,13 @@ namespace Kodus\Session;
  */
 interface SessionService
 {
+    /**
+     * Set a SessionModel object in the session storage.
+     *
+     * @param SessionModel $object
+     *
+     * @return void
+     */
     public function set(SessionModel $object);
 
     /**
@@ -19,7 +27,7 @@ interface SessionService
      * multiple redirects in a POST-Redirect-GET pattern solution, the flash message is still available when you reach
      * the GET request.
      *
-     * @param $object
+     * @param SessionModel $object
      *
      * @return void
      */
@@ -35,16 +43,16 @@ interface SessionService
      *
      * @param string $type The class name of the object to be read from the session storage
      *
-     * @return mixed
+     * @return SessionModel
      */
-    public function get($type);
+    public function get(string $type): SessionModel;
 
     /**
      * @param string $type The class name of the session model to check
      *
      * @return boolean Returns true if a session model of with class name matching $type is stored in session.
      */
-    public function has($type);
+    public function has(string $type): bool;
 
     /**
      * Remove any instance of the class $type from the session.
@@ -53,7 +61,7 @@ interface SessionService
      *
      * @return void
      */
-    public function unset($type);
+    public function unset(string $type);
 
     /**
      * Clear all objects stored in session on next commit().
@@ -69,5 +77,5 @@ interface SessionService
      *
      * @return string
      */
-    public function getSessionID();
+    public function getSessionID(): string;
 }

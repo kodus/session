@@ -77,14 +77,18 @@ class CacheSessionService implements SessionService
     public function flash(SessionModel $object)
     {
         $this->writeDeffered($object, true);
+
+        return;
     }
 
     public function set(SessionModel $object)
     {
         $this->writeDeffered($object, false);
+
+        return;
     }
 
-    public function get($type)
+    public function get(string $type): SessionModel
     {
         $object = $this->read_cache[$type] ?? $this->getFromStorage($type);
 
@@ -95,17 +99,19 @@ class CacheSessionService implements SessionService
         return $object;
     }
 
-    public function has($type)
+    public function has(string $type): bool
     {
         return isset($this->read_cache[$type]) || $this->existsInStorage($type);
     }
 
-    public function unset($type)
+    public function unset(string $type)
     {
         unset($this->read_cache[$type]);
         unset($this->write_cache[$type]);
 
         $this->removed[$type] = $type;
+
+        return;
     }
 
     public function clear()
@@ -116,9 +122,11 @@ class CacheSessionService implements SessionService
         }
 
         $this->cleared = true;
+
+        return;
     }
 
-    public function getSessionID()
+    public function getSessionID(): string
     {
         return $this->session_id;
     }

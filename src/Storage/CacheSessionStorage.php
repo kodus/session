@@ -1,10 +1,9 @@
 <?php
 
-namespace Kodus\Session\Service;
+namespace Kodus\Session\Storage;
 
-use Kodus\Session\Components\UUID;
-use Kodus\Session\SessionModel;
-use Kodus\Session\SessionService;
+use Kodus\Session\Component\UUID;
+use Kodus\Session\SessionStorage;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\SimpleCache\CacheInterface;
@@ -15,7 +14,7 @@ use RuntimeException;
  *
  * get(), set(), flash(), unset(), and clear() actions are cached individually and stored to the cache at commit().
  */
-class CacheSessionService implements SessionService
+class CacheSessionStorage implements SessionStorage
 {
     const COOKIE_KEY             = "sessionID";
     const SESSION_INDEX_PREFIX   = "kodus.session.";
@@ -63,8 +62,6 @@ class CacheSessionService implements SessionService
     private $session_ttl;
 
     /**
-     * CacheSessionService constructor.
-     *
      * @param CacheInterface $storage     The cache provider to store session data in.
      * @param int            $session_ttl Session lifetime in seconds - Default: two weeks
      */
@@ -74,51 +71,51 @@ class CacheSessionService implements SessionService
         $this->session_ttl = $session_ttl;
     }
 
-    public function flash(SessionModel $object)
+    public function flash(string $key, $value)
     {
-        $this->writeDeffered($object, true);
+        $this->writeDeffered($key, $value, true);
 
         return;
     }
 
-    public function set(SessionModel $object)
+    public function set(string $key, $value)
     {
-        $this->writeDeffered($object, false);
+        $this->writeDeffered($key, $value, false);
 
         return;
     }
 
-    public function get(string $type): SessionModel
+    public function get(string $key)
     {
-        $object = $this->read_cache[$type] ?? $this->getFromStorage($type);
+        $value = $this->read_cache[$key] ?? $this->getFromStorage($key);
 
-        if (is_null($object)) {
-            throw new RuntimeException("Instance of SessionModel {$type} not found in session!");
+        if (is_null($value)) {
+            throw new RuntimeException("No value found for key#{$key} found in session!");
         }
 
-        return $object;
+        return $value;
     }
 
-    public function has(string $type): bool
+    public function has(string $key): bool
     {
-        return isset($this->read_cache[$type]) || $this->existsInStorage($type);
+        return isset($this->read_cache[$key]) || $this->existsInStorage($key);
     }
 
-    public function unset(string $type)
+    public function unset(string $key)
     {
-        unset($this->read_cache[$type]);
-        unset($this->write_cache[$type]);
+        unset($this->read_cache[$key]);
+        unset($this->write_cache[$key]);
 
-        $this->removed[$type] = $type;
+        $this->removed[$key] = $key;
 
         return;
     }
 
     public function clear()
     {
-        foreach ($this->write_cache as $type => $object) {
-            unset($this->read_cache[$type]);
-            unset($this->write_cache[$type]);
+        foreach ($this->write_cache as $key => $value) {
+            unset($this->read_cache[$key]);
+            unset($this->write_cache[$key]);
         }
 
         $this->cleared = true;
@@ -126,7 +123,7 @@ class CacheSessionService implements SessionService
         return;
     }
 
-    public function getSessionID(): string
+    public function sessionID(): string
     {
         return $this->session_id;
     }
@@ -141,7 +138,7 @@ class CacheSessionService implements SessionService
         $this->clearState();
 
         $cookies = $request->getCookieParams();
-        $session_id = $cookies[CacheSessionService::COOKIE_KEY] ?? null;
+        $session_id = $cookies[CacheSessionStorage::COOKIE_KEY] ?? null;
 
         if (! $this->sessionIsActive($session_id)) {
             $session_id = base64_encode(UUID::create());
@@ -168,8 +165,8 @@ class CacheSessionService implements SessionService
             $flashes = $this->storage->get(self::FLASHES_STORAGE_INDEX) ?: [];
 
             if ($response->getStatusCode() < 300) {
-                foreach ($flashes as $type) {
-                    $this->storage->delete($this->storageKeyFromType($type));
+                foreach ($flashes as $key) {
+                    $this->storage->delete($this->storageKey($key));
                 }
                 $this->storage->set(self::FLASHES_STORAGE_INDEX, $this->flashed);
             } else {
@@ -177,14 +174,14 @@ class CacheSessionService implements SessionService
             }
 
             # DELETE SESSION MODELS THAT WERE REMOVED DURING THIS REQUEST
-            foreach ($this->removed as $type) {
-                $this->storage->delete($this->storageKeyFromType($type));
+            foreach ($this->removed as $key) {
+                $this->storage->delete($this->storageKey($key));
             }
         }
 
         # WRITE OPERATIONS
-        foreach ($this->write_cache as $type => $object) {
-            $this->storage->set($this->storageKeyFromType($type), $object);
+        foreach ($this->write_cache as $key => $type) {
+            $this->storage->set($this->storageKey($key), $type);
         }
 
         # SET EXPIRATION TIME FOR SESSION ID IN STORAGE.
@@ -202,22 +199,21 @@ class CacheSessionService implements SessionService
     /**
      * A deffered write operation. The actual write operation will occur at commit()
      *
-     * @param SessionModel $object
-     * @param bool         $is_flash
+     * @param string $key
+     * @param mixed  $value
+     * @param bool   $is_flash
      */
-    protected function writeDeffered(SessionModel $object, $is_flash = false)
+    protected function writeDeffered(string $key, $value, bool $is_flash = false)
     {
-        $type = get_class($object);
+        unset($this->removed[$key]);
 
-        unset($this->removed[$type]);
-
-        $this->read_cache[$type] = $object;
-        $this->write_cache[$type] = $object;
+        $this->read_cache[$key] = $value;
+        $this->write_cache[$key] = $value;
 
         if ($is_flash) {
-            $this->flashed[$type] = $type;
+            $this->flashed[$key] = $key;
         } else {
-            unset($this->flashed[$type]);
+            unset($this->flashed[$key]);
         }
     }
 
@@ -225,21 +221,21 @@ class CacheSessionService implements SessionService
      * Checks if an object with the class name $type APPEARS to be in cache.
      *
      * What is meant by "APPEARS to be in cache"?:
-     * If during the lifetime of the CacheSessionService, the $type was either removed, or the whole session storage
+     * If during the lifetime of the CacheSessionStorage, the $type was either removed, or the whole session storage
      * cleared by calling clear(), the connection to the storage is effectively cut-off, so the result reflects whether
      * the session was cleared or the $type removed since the last commit to storage.
      *
-     * @param string $type
+     * @param string $key
      *
      * @return bool returns true if an object of the given $type appears to be stored in storage.
      */
-    protected function existsInStorage($type)
+    protected function existsInStorage($key)
     {
-        if ($this->cleared || isset($this->removed[$type])) {
+        if ($this->cleared || isset($this->removed[$key])) {
             return false;
         }
 
-        $storage_key = $this->storageKeyFromType($type);
+        $storage_key = $this->storageKey($key);
 
         return $this->storage->exists($storage_key);
 
@@ -250,40 +246,41 @@ class CacheSessionService implements SessionService
      * return the object.
      *
      * What is meant by "APPEARS to be in cache"?:
-     * @see CacheSessionService::existsInStorage
      *
-     * @param string $type
+     * @see CacheSessionStorage::existsInStorage
+     *
+     * @param string $key
      *
      * @return mixed|null
      */
-    protected function getFromStorage($type)
+    protected function getFromStorage($key)
     {
-        if ($this->cleared || isset($this->removed[$type])) {
+        if ($this->cleared || isset($this->removed[$key])) {
             return null;
         }
 
-        $storage_key = $this->storageKeyFromType($type);
+        $storage_key = $this->storageKey($key);
 
-        $object = $this->storage->get($storage_key);
+        $value = $this->storage->get($storage_key);
 
-        if ($object) {
-            $this->read_cache[$type] = $object;
+        if ($value) {
+            $this->read_cache[$key] = $value;
         }
 
-        return $object;
+        return $value;
     }
 
     /**
      * Prefixes the type name with a session "namespace" and the session_id, so the index in the cache storage is
      * distinguishable from an index for the same type but a different session.
      *
-     * @param string $type
+     * @param string $key
      *
      * @return string
      */
-    protected function storageKeyFromType($type)
+    protected function storageKey($key)
     {
-        return self::SESSION_INDEX_PREFIX . $this->session_id . ".$type";
+        return self::SESSION_INDEX_PREFIX . $this->session_id . ".$key";
     }
 
     /**

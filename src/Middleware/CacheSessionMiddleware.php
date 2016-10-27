@@ -4,7 +4,7 @@ namespace Kodus\Session\Middleware;
 
 use Interop\Http\Middleware\DelegateInterface;
 use Interop\Http\Middleware\ServerMiddlewareInterface;
-use Kodus\Session\Service\CacheSessionService;
+use Kodus\Session\Storage\CacheSessionStorage;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**
@@ -20,11 +20,11 @@ use Psr\Http\Message\ServerRequestInterface;
 class CacheSessionMiddleware implements ServerMiddlewareInterface
 {
     /**
-     * @var CacheSessionService
+     * @var CacheSessionStorage
      */
     private $session;
 
-    public function __construct(CacheSessionService $session)
+    public function __construct(CacheSessionStorage $session)
     {
         $this->session = $session;
     }

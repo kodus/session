@@ -18,7 +18,7 @@ use Zend\Diactoros\Response;
  * I.e. When testing session middleware, the actual interaction with the session service is supposed to happen during the
  * nested call to the next middleware.
  *
- * @see Kodus\Session\Tests\Unit\Middleware\CacheSessionMiddlewareCest
+ * @see \Kodus\Session\Tests\Unit\Middleware\CacheSessionMiddlewareCest
  */
 class DelegateMock implements DelegateInterface
 {
@@ -48,7 +48,7 @@ class DelegateMock implements DelegateInterface
         return ($response instanceof ResponseInterface) ? $response : new Response();
     }
 
-    public function setNextClosure(Closure $next)
+    public function setNext(Closure $next)
     {
         $this->next = $next;
     }

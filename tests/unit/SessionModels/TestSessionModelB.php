@@ -1,0 +1,18 @@
+<?php
+
+namespace Kodus\Session\Tests\Unit\SessionModels;
+
+use Kodus\Session\SessionModel;
+
+class TestSessionModelB implements SessionModel
+{
+    /**
+     * @var string
+     */
+    public $foo;
+
+    /**
+     * @var string
+     */
+    public $bar;
+}

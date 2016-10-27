@@ -116,7 +116,7 @@ interface SessionService
 
     public function clear();
 
-    public function getSessionID(): string;
+    public function sessionID(): string;
 }
 ```
 

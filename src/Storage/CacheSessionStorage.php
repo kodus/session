@@ -44,7 +44,7 @@ class CacheSessionStorage implements SessionStorage
     /**
      * @var bool Indicates whether the clear() method was called since the last commit()
      */
-    private $cleared = false;
+    private $clear_at_commit = false;
 
     /**
      * @var array Index of the object types that was set as flash sessions. These will be removed during next request.
@@ -118,7 +118,7 @@ class CacheSessionStorage implements SessionStorage
             unset($this->write_cache[$key]);
         }
 
-        $this->cleared = true;
+        $this->clear_at_commit = true;
 
         return;
     }
@@ -156,7 +156,7 @@ class CacheSessionStorage implements SessionStorage
      */
     public function commit(ResponseInterface $response)
     {
-        if ($this->cleared) {
+        if ($this->clear_at_commit) {
             # CLEAR STORAGE (if clear() was called during the request)
             $this->storage->clear();
         } else {
@@ -231,7 +231,7 @@ class CacheSessionStorage implements SessionStorage
      */
     protected function existsInStorage($key)
     {
-        if ($this->cleared || isset($this->removed[$key])) {
+        if ($this->clear_at_commit || isset($this->removed[$key])) {
             return false;
         }
 
@@ -255,7 +255,7 @@ class CacheSessionStorage implements SessionStorage
      */
     protected function getFromStorage($key)
     {
-        if ($this->cleared || isset($this->removed[$key])) {
+        if ($this->clear_at_commit || isset($this->removed[$key])) {
             return null;
         }
 
@@ -343,7 +343,7 @@ class CacheSessionStorage implements SessionStorage
      */
     private function clearState()
     {
-        $this->cleared = false;
+        $this->clear_at_commit = false;
         $this->read_cache = [];
         $this->write_cache = [];
         $this->removed = [];

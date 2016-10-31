@@ -2,7 +2,6 @@
 
 namespace Kodus\Session;
 
-
 interface SessionStorage
 {
     /**

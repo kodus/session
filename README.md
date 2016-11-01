@@ -147,23 +147,22 @@ the [Single Responsibility Principle](https://en.wikipedia.org/wiki/Single_respo
 ## SessionService
 The `SessionService` class provides an API for storing instances of `SessionModel` in the session storage.
 
----
+#### set()
 ```php
 SessionService::set(SessionModel $object): void
 ```
 Save the state of a specific `SessionModel` object to the session storage.
 
----
+#### flash()
 ```php
 SessionService::flash(SessionModel $object): void
 ```
 Flash the state of a specific `SessionModel` object to the session storage.
 
----
 Flashed objects only live through one succesful request. A sucessful request is defined as a
 request that resolves to a response with status code &lt; 300.
 
----
+#### get()
 ```php
 SessionService::get(string $type): SessionModel
 ```
@@ -186,25 +185,25 @@ $user = $user_repository->getUser($my_user_session->id);
 Docblocks has no runtime effect, but your IDE will be able to inspect, auto-complete and all the other neat things, your IDE does
 (providing you use an IDE with these features of course).
 
----
+#### has()
 ```php
 SessionService::has(string $type): bool
 ```
 Returns true if an instance of the given type has been stored in the session.
 
----
+#### unset()
 ```php
 SessionService::unset(string $type): void
 ```
 Removes any instance of the given type from the session.
 
----
+#### clear()
 ```php
 SessionService::clear(void): void
 ```
 Clears all values from the session storage.
 
----
+#### sessionID()
 ```php
 SessionService::sessionID(void): string
 ```
@@ -216,21 +215,21 @@ Returns the unique identifier for the current session.
 
 The interface `SessionStorage` defines a set of methods for performing read and write operations to the session.
 
----
+#### set()
 ```php
 SessionStorage::set(string $key, mixed $value): void
 ```
 Adds a key/value pair to the session storage. It is assumed that the value is of a type that can be serialized and
 deserialized by PHP. [More about serialization here](http://php.net/manual/en/function.serialize.php).
 
----
+#### flash()
 ```php
 SessionStorage::flash(string $key, mixed $value): void
 ```
 Adds a flash key/value pair to the session storage. Flash values only live through one succesful request.
 A sucessful request is defined as a request that resolves to a response with status code &lt; 300.
 
----
+#### get()
 ```php
 SessionStorage::get(string $key): mixed
 ```
@@ -239,25 +238,25 @@ under the given key.
 
 Never call `SessionStorage::get($key)` if `SessionStorage::has($key)` returns false for the same key.
 
----
+#### has()
 ```php
-SessionStorage::get(string $key): mixed
+SessionStorage::has(string $key): bool
 ```
 Returns true if a value is stored in session under the given key. 
 
----
+#### unset()
 ```php
 SessionStorage::unset(string $key): void
 ```
 Remove any value stored in the current session for the given key.
 
----
+#### clear()
 ```php
 SessionStorage::clear(): void
 ```
 Remove all values for the current session.
 
----
+#### sessionID()
 ```php
 SessionStorage::sessionID(): string
 ```

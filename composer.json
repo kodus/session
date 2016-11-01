@@ -9,10 +9,13 @@
         }
     ],
     "minimum-stability": "dev",
+    "prefer-stable": true,
     "require": {
         "php": "^7.0",
         "psr/http-message": "^1.0",
-        "http-interop/http-middleware": "^0.2.0"
+        "http-interop/http-middleware": "^0.2.0",
+        "kodus/simple-cache": "^0.1",
+        "psr/simple-cache": "^0.1"
     },
     "require-dev": {
         "codeception/codeception": "^2",
@@ -20,8 +23,7 @@
     },
     "autoload": {
         "psr-4": {
-            "Kodus\\Session\\" : "src",
-            "Psr\\SimpleCache\\" : "psr-simplecache"
+            "Kodus\\Session\\" : "src"
         }
     },
     "autoload-dev": {

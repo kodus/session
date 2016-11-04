@@ -56,21 +56,11 @@ class SessionService
      *
      * @param string $type The class name of the object to be read from the session storage
      *
-     * @return SessionModel
+     * @return SessionModel|null
      */
-    public function get(string $type): SessionModel
+    public function get(string $type)
     {
         return $this->storage->get($this->storageKey($type));
-    }
-
-    /**
-     * @param string $type The class name of the session model to check
-     *
-     * @return boolean Returns true if a session model of with class name matching $type is stored in session.
-     */
-    public function has(string $type): bool
-    {
-        return $this->storage->has($this->storageKey($type));
     }
 
     /**
@@ -102,9 +92,9 @@ class SessionService
      *
      * @return string
      */
-    public function sessionID(): string
+    public function getSessionID(): string
     {
-        return $this->storage->sessionID();
+        return $this->storage->getSessionID();
     }
 
     /**

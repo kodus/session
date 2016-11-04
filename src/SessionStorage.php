@@ -31,18 +31,7 @@ interface SessionStorage
     public function flash(string $key, $value);
 
     /**
-     * @param string $key
-     *
-     * @return bool Returns true if a key/value pair with the given key is stored in session
-     */
-    public function has(string $key): bool;
-
-    /**
-     * Return the value stored under the given key
-     *
-     * Don't call this method if self::has($key) returns false
-     *
-     * Implementations should throw a \RuntimeException if nothing is stored under the given key.
+     * Return the value stored under the given key or Null if nothing was stored
      *
      * @param string $key
      *
@@ -71,5 +60,5 @@ interface SessionStorage
     /**
      * @return string Returns the unique id for the current session.
      */
-    public function sessionID(): string;
+    public function getSessionID(): string;
 }

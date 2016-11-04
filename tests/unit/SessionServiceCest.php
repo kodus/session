@@ -49,57 +49,56 @@ class SessionServiceCest
 
         $service->set($model_a);
 
-        $I->assertTrue($service->has(TestSessionModelA::class), "has(x) returns true if x is in session");
-        $I->assertFalse($service->has(TestSessionModelB::class), "has(x) returns false if x is not in session");
+        $I->assertEquals($model_a, $service->get(TestSessionModelA::class), "Returns equal object to what was stored");
+        $I->assertNull($service->get(TestSessionModelB::class), "Returns null when nothing stored");
 
         $service = $this->nextRequest($service);
 
-        $I->assertTrue($service->has(TestSessionModelA::class), "has(x) returns true if x is in session");
-        $I->assertFalse($service->has(TestSessionModelB::class), "has(x) returns false if x is not in session");
-
-        $I->assertEquals($model_a, $service->get(TestSessionModelA::class), "SessionModels are stored and fetched correctly");
+        $I->assertEquals($model_a, $service->get(TestSessionModelA::class), "Returns equal object to what was stored");
+        $I->assertNull($service->get(TestSessionModelB::class), "Returns null when nothing stored");
 
         $service->unset(TestSessionModelA::class);
 
-        $I->assertFalse($service->has(TestSessionModelA::class), "After calling unset(x), x is not in session");
+        $I->assertNull($service->get(TestSessionModelA::class), "After calling unset(x), x is not in session");
 
         $service = $this->nextRequest($service);
 
-        $I->assertFalse($service->has(TestSessionModelA::class), "After calling unset(x), x is not in session");
+        $I->assertNull($service->get(TestSessionModelA::class), "After calling unset(x), x is not in session");
 
         $service->flash($model_a);
 
-        $I->assertTrue($service->has(TestSessionModelA::class), "Flash messages can be fetched during same request.");
+        $I->assertEquals($model_a, $service->get(TestSessionModelA::class), "Flashes can be fetched in same request.");
 
         $service = $this->nextRequest($service, 301);
         $service = $this->nextRequest($service, 302);
         $service = $this->nextRequest($service, 303);
         $service = $this->nextRequest($service, 500);
 
-        $I->assertTrue($service->has(TestSessionModelA::class),
+        $I->assertEquals($model_a, $service->get(TestSessionModelA::class),
             "Flash messages are present after a series of redirect or fail responses");
 
         $service = $this->nextRequest($service);
 
-        $I->assertFalse($service->has(TestSessionModelA::class),
+        $I->assertNull($service->get(TestSessionModelA::class),
             "Flash messages are removed after the first request returning 200");
 
         $service->set($model_a);
         $service->set($model_b);
+
         $service = $this->nextRequest($service);
 
         $service->clear();
 
-        $I->assertFalse($service->has(TestSessionModelA::class), "No models in storage after clear()");
-        $I->assertFalse($service->has(TestSessionModelB::class), "No models in storage after clear()");
+        $I->assertNull($service->get(TestSessionModelA::class), "No models in storage after clear()");
+        $I->assertNull($service->get(TestSessionModelB::class), "No models in storage after clear()");
 
         $service->set($model_a);
-        $I->assertTrue($service->has(TestSessionModelA::class), "Set models in storage after clear()");
+        $I->assertEquals($model_a, $service->get(TestSessionModelA::class), "Set models in storage after clear()");
 
         $service = $this->nextRequest($service);
 
-        $I->assertTrue($service->has(TestSessionModelA::class), "Set models in storage after clear()");
-        $I->assertFalse($service->has(TestSessionModelB::class), "No models in storage after clear()");
+        $I->assertEquals($model_a, $service->get(TestSessionModelA::class), "Set models in storage after clear()");
+        $I->assertNull($service->get(TestSessionModelB::class), "No models in storage after clear()");
     }
 
     /**
@@ -109,7 +108,7 @@ class SessionServiceCest
     {
         $response = new Response('php://temp', $response_code);
 
-        $session_id = $service->sessionID();
+        $session_id = $service->getSessionID();
 
         $this->storages[$session_id]->commit($response);
 
@@ -144,7 +143,7 @@ class SessionServiceCest
 
         $storage->begin($request);
 
-        $this->storages[$storage->sessionID()] = $storage;
+        $this->storages[$storage->getSessionID()] = $storage;
 
         return $storage;
     }

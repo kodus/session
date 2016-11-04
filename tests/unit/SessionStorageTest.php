@@ -5,7 +5,6 @@ namespace Kodus\Session\Tests\Unit;
 use Closure;
 use Exception;
 use Kodus\Session\SessionStorage;
-use RuntimeException;
 use UnitTester;
 
 /**
@@ -16,6 +15,7 @@ use UnitTester;
  * define the session cookie or how it's set, these can't be implemented generically.
  *
  * For an example look at
+ *
  * @see \Kodus\Session\Tests\Unit\Storage\CacheSessionStorageCest::nextRequest()
  */
 abstract class SessionStorageTest
@@ -31,45 +31,31 @@ abstract class SessionStorageTest
         $value_1 = "1st value";
         $value_2 = "2nd value";
 
-        $I->assertFalse($storage->has($key_1), "SessionStorage::has(X) only returns true if X is stored in session");
-        $I->assertFalse($storage->has($key_2), "SessionService::has(X) only returns true if X is stored in session");
-
-        $exception_caught = $this->catchException(RuntimeException::class, function () use ($storage, $key_1) {
-            $storage->get($key_1);
-        });
-
-        $I->assertTrue($exception_caught, "Calling get(x) for a non-existing x throws a RuntimeException");
+        $I->assertNull($storage->get($key_1), "SessionStorage::get(X) returns null if nothing stored under X");
+        $I->assertNull($storage->get($key_2), "SessionStorage::get(X) returns null if nothing stored under X");
 
         $storage->set($key_1, $value_1);
         $storage->set($key_2, $value_2);
 
-        $I->assertTrue($storage->has($key_1), "After setting X SessionStorage::has(X) returns true");
-        $I->assertTrue($storage->has($key_2), "After setting X SessionStorage::has(X) returns true");
-
         $I->assertSame($value_1, $storage->get($key_1), "Get value before committing to storage");
-        $I->assertEquals($value_2, $storage->get($key_2), "Get value before committing to storage");
+        $I->assertSame($value_2, $storage->get($key_2), "Get value before committing to storage");
 
         $storage = $this->nextRequest($storage);
 
-        $I->assertTrue($storage->has($key_1), "After setting X SessionStorage::has(X) returns true");
-        $I->assertTrue($storage->has($key_2), "After setting X SessionStorage::has(X) returns true");
-
         $I->assertSame($value_1, $storage->get($key_1), "Get value from storage");
-        $I->assertEquals($value_2, $storage->get($key_2), "Get value from storage");
+        $I->assertSame($value_2, $storage->get($key_2), "Get value from storage");
 
         $storage->unset($key_1);
         $storage->unset($key_2);
         //Test setting value under $key_2 immediately after unsetting the old value.
         $storage->set($key_2, $value_1);
 
-        $I->assertFalse($storage->has($key_1), "After unsetting \$key_1, SessionStorage::has(\$key_1) returns false");
-        $I->assertTrue($storage->has($key_2), "Values can be set after being unset");
+        $I->assertNull($storage->get($key_1), "After unsetting \$key_1, SessionStorage::get(\$key_1) returns null");
         $I->assertSame($value_1, $storage->get($key_2), "Values can be set after being unset");
 
         $storage = $this->nextRequest($storage);
 
-        $I->assertFalse($storage->has($key_1), "After unsetting \$key_1, SessionStorage::has(\$key_1) returns false");
-        $I->assertTrue($storage->has($key_2), "Values can be set after being unset");
+        $I->assertNull($storage->get($key_1), "After unsetting \$key_1, SessionStorage::get(\$key_1) returns null");
         $I->assertSame($value_1, $storage->get($key_2), "Values can be set after being unset");
     }
 
@@ -93,17 +79,16 @@ abstract class SessionStorageTest
 
         $storage->clear();
 
-        $I->assertFalse($storage->has($key_1), "After clearing storage, previously stored values are gone");
-        $I->assertFalse($storage->has($key_2), "After clearing storage, previously stored values are gone");
+        $I->assertNull($storage->get($key_1), "After clearing storage, previously stored values are gone");
+        $I->assertNull($storage->get($key_2), "After clearing storage, previously stored values are gone");
 
         $storage->set($key_2, $value_3);
 
-        $I->assertTrue($storage->has($key_2), "Values can be still be added after clearing storage");
+        $I->assertSame($value_3, $storage->get($key_2), "Values can be still be added after clearing storage");
 
         $storage = $this->nextRequest($storage);
 
-        $I->assertFalse($storage->has($key_1), "After clearing storage, previously stored values are gone");
-        $I->assertTrue($storage->has($key_2), "After clearing storage, previously stored values are gone");
+        $I->assertNull($storage->get($key_1), "After clearing storage, previously stored values are gone");
         $I->assertSame($value_3, $storage->get($key_2), "SessionStorage should reflect the most recent values stored");
     }
 
@@ -125,17 +110,12 @@ abstract class SessionStorageTest
 
         $storage = $this->nextRequest($storage);
 
-        $I->assertTrue($storage->has($key_1), "First request after committing should contain flashed session object");
-        $I->assertTrue($storage->has($key_2), "First request after committing regular session object");
-
         $I->assertSame($value_1, $storage->get($key_1));
         $I->assertSame($value_2, $storage->get($key_2));
 
         $storage = $this->nextRequest($storage);
 
-        $I->assertFalse($storage->has($key_1), "In the second request, the flash value is no longer available");
-        $I->assertTrue($storage->has($key_2), "In the second request, the regular session value is still available");
-
+        $I->assertNull($storage->get($key_1), "In the second request, the flash value is no longer available");
         $I->assertSame($value_2, $storage->get($key_2), "In the second request, the regular value is still available");
 
         $storage->flash($key_1, $value_1);
@@ -146,20 +126,20 @@ abstract class SessionStorageTest
         $storage = $this->nextRequest($storage, 301);
         $storage = $this->nextRequest($storage, 500);
 
-        $I->assertTrue($storage->has($key_1), "Flash messages stays in storage until the first succesful request");
+        $I->assertSame($value_1, $storage->get($key_1), "Flash message stays in storage until first succesful request");
 
         $storage = $this->nextRequest($storage);
 
-        $I->assertFalse($storage->has($key_1), "After the first succesfull request the flash message dissapears");
+        $I->assertNull($storage->get($key_1), "After the first succesfull request the flash message dissapears");
 
         $storage->flash($key_1, $value_1);
         $storage->unset($key_1);
 
-        $I->assertFalse($storage->has($key_1), "Flash messages can be removed after being set");
+        $I->assertNull($storage->get($key_1), "Flash messages can be removed after being set");
 
         $storage = $this->nextRequest($storage);
 
-        $I->assertFalse($storage->has($key_1), "Flash messages can be removed after being set");
+        $I->assertNull($storage->get($key_1), "Flash messages can be removed after being set");
     }
 
     public function multipleSessions(UnitTester $I)
@@ -188,15 +168,12 @@ abstract class SessionStorageTest
 
         $service_2 = $this->nextRequest($service_2);
 
-        $I->assertTrue($service_1->has($key_1));
-        $I->assertFalse($service_1->has($key_2));
-        $I->assertTrue($service_1->has($shared_key));
-
-        $I->assertFalse($service_2->has($key_1));
-        $I->assertTrue($service_2->has($key_2));
-        $I->assertTrue($service_2->has($shared_key));
-
+        $I->assertSame($value_1, $service_1->get($key_1));
+        $I->assertNull($service_1->get($key_2));
         $I->assertSame($value_1, $service_1->get($shared_key));
+
+        $I->assertNull($service_2->get($key_1));
+        $I->assertSame($value_2, $service_2->get($key_2));
         $I->assertSame($value_2, $service_2->get($shared_key));
     }
 

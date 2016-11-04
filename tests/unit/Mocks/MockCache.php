@@ -32,9 +32,9 @@ class MockCache implements CacheInterface
 
     public function deleteMultiple($keys)
     {
-        $this->cache = array_filter($this->cache, function ($key) use ($keys) {
-            return ! in_array($key, $keys);
-        });
+        foreach ($keys as $key) {
+            unset($this->cache[$key]);
+        }
     }
 
     public function exists($key)

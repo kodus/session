@@ -24,16 +24,13 @@ class CacheSessionMiddlewareCest
         $key = "hello key";
         $value = "hello middleware";
 
-        $I->assertFalse($storage->has($key), "Before the request has been run, nothing is in cache");
+        $I->assertNull($storage->get($key), "Before the request has been run, nothing is in cache");
 
         $delegate->setNext(function () use ($storage, $key, $value) {
             $storage->set($key, $value);
         });
 
         $response = $middleware->process(new ServerRequest(), $delegate);
-
-        $I->assertTrue($storage->has($key),
-            "After running the session middleware the changes should be visible in the service");
 
         $value = $storage->get($key);
 
@@ -44,9 +41,9 @@ class CacheSessionMiddlewareCest
         $headers = $response->getHeader("set-cookie");
 
         $I->assertEquals(1, count($headers), "Only one cookie header should be set from the session");
-        $I->assertNotEmpty($storage->sessionID(), "Should have a non-empty session id");
+        $I->assertNotEmpty($storage->getSessionID(), "Should have a non-empty session id");
 
-        $expected_cookie = CacheSessionStorageMock::COOKIE_KEY . "=" . $storage->sessionID() . "; Max-Age=3600; Expires=3600; Path=/;";
+        $expected_cookie = CacheSessionStorageMock::COOKIE_KEY . "=" . $storage->getSessionID() . "; Max-Age=3600; Expires=3600; Path=/;";
 
         $I->assertSame($expected_cookie, $headers[0], "Cookie should match expected values and session ID");
     }

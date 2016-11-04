@@ -89,16 +89,7 @@ class CacheSessionStorage implements SessionStorage
     {
         $value = $this->read_cache[$key] ?? $this->getFromStorage($key);
 
-        if (is_null($value)) {
-            throw new RuntimeException("No value found for key#{$key} found in session!");
-        }
-
         return $value;
-    }
-
-    public function has(string $key): bool
-    {
-        return isset($this->read_cache[$key]) || $this->existsInStorage($key);
     }
 
     public function unset(string $key)
@@ -123,7 +114,7 @@ class CacheSessionStorage implements SessionStorage
         return;
     }
 
-    public function sessionID(): string
+    public function getSessionID(): string
     {
         return $this->session_id;
     }

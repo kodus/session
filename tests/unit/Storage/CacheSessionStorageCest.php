@@ -55,7 +55,7 @@ class CacheSessionStorageCest extends SessionStorageTest
 
         $cookie_string = $cookie_headers[0];
 
-        $expected_cookie_string = "sessionID=" . $service->sessionID() . "; Max-Age=3600; Expires=13600; Path=/;";
+        $expected_cookie_string = "sessionID=" . $service->getSessionID() . "; Max-Age=3600; Expires=13600; Path=/;";
 
         $I->assertSame($expected_cookie_string, $cookie_string);
     }
@@ -78,12 +78,12 @@ class CacheSessionStorageCest extends SessionStorageTest
         $service->commit(new Response());
 
         // Two hours passes
-        $session_id = $service->sessionID();
+        $session_id = $service->getSessionID();
         $service = $this->createSessionStorageMock($session_id, 3600, 7200);
 
-        $I->assertNotEquals($session_id, $service->sessionID(),
+        $I->assertNotEquals($session_id, $service->getSessionID(),
             "The previous session expired, so this should be a new session");
-        $I->assertFalse($service->has("key"),
+        $I->assertNull($service->get("key"),
             "The new session shouldn't remember anything from the last session");
     }
 
@@ -103,7 +103,7 @@ class CacheSessionStorageCest extends SessionStorageTest
 
         $storage->commit($response);
 
-        $session_id = $storage->sessionID();
+        $session_id = $storage->getSessionID();
 
         $new_service = $this->createStorage($session_id);
 

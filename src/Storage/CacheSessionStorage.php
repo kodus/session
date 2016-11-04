@@ -7,7 +7,6 @@ use Kodus\Session\SessionStorage;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\SimpleCache\CacheInterface;
-use RuntimeException;
 
 /**
  * A session service that stores the session data in a PSR-16 compliant cache storage.
@@ -119,11 +118,6 @@ class CacheSessionStorage implements SessionStorage
         return $this->session_id;
     }
 
-    /**
-     * Initiate the session from the cookie params found in the server request
-     *
-     * @param ServerRequestInterface $request
-     */
     public function begin(ServerRequestInterface $request)
     {
         $this->clearState();
@@ -138,14 +132,7 @@ class CacheSessionStorage implements SessionStorage
         $this->session_id = $session_id;
     }
 
-    /**
-     * Save Session data into the cache storage and add session cookie to response
-     *
-     * @param ResponseInterface $response
-     *
-     * @return ResponseInterface
-     */
-    public function commit(ResponseInterface $response)
+    public function commit(ResponseInterface $response): ResponseInterface
     {
         if ($this->clear_at_commit) {
             # CLEAR STORAGE (if clear() was called during the request)
@@ -209,36 +196,13 @@ class CacheSessionStorage implements SessionStorage
     }
 
     /**
-     * Checks if an object with the class name $type APPEARS to be in cache.
-     *
-     * What is meant by "APPEARS to be in cache"?:
-     * If during the lifetime of the CacheSessionStorage, the $type was either removed, or the whole session storage
-     * cleared by calling clear(), the connection to the storage is effectively cut-off, so the result reflects whether
-     * the session was cleared or the $type removed since the last commit to storage.
-     *
-     * @param string $key
-     *
-     * @return bool returns true if an object of the given $type appears to be stored in storage.
-     */
-    protected function existsInStorage($key)
-    {
-        if ($this->clear_at_commit || isset($this->removed[$key])) {
-            return false;
-        }
-
-        $storage_key = $this->storageKey($key);
-
-        return $this->storage->exists($storage_key);
-
-    }
-
-    /**
      * If an object of type $type APPEARS to be in cache, then register it in the read_cache array attribute and
      * return the object.
      *
      * What is meant by "APPEARS to be in cache"?:
-     *
-     * @see CacheSessionStorage::existsInStorage
+     * If during the lifetime of the CacheSessionStorage, the $type was either removed, or the whole session storage
+     * cleared by calling clear(), the connection to the storage is effectively cut-off, so the result reflects whether
+     * the session was cleared or the $type removed since the last commit to storage
      *
      * @param string $key
      *

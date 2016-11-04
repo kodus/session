@@ -1,15 +1,13 @@
 <?php
 
-namespace Kodus\Session\Middleware;
+namespace Kodus\Session;
 
 use Interop\Http\Middleware\DelegateInterface;
 use Interop\Http\Middleware\ServerMiddlewareInterface;
-use Kodus\Session\Storage\CacheSessionStorage;
+use Kodus\Session\SessionStorage;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**
- * Session middleware for the CacheSessionMiddleware class.
- *
  * The middleware will initialise the session based the session cookie (or lack of) in the request, and delegate to the
  * next middleware. When a response is returned, the changes are committed to the storage, and a session cookie is added
  * to the response.
@@ -17,14 +15,14 @@ use Psr\Http\Message\ServerRequestInterface;
  * This middleware should be placed above any middleware that might cause changes to the session or need to fetch
  * session values.
  */
-class CacheSessionMiddleware implements ServerMiddlewareInterface
+class SessionMiddleware implements ServerMiddlewareInterface
 {
     /**
-     * @var CacheSessionStorage
+     * @var SessionStorage
      */
     private $session;
 
-    public function __construct(CacheSessionStorage $session)
+    public function __construct(SessionStorage $session)
     {
         $this->session = $session;
     }

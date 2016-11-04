@@ -1,25 +1,25 @@
 <?php
 
-namespace Kodus\Session\Tests\Unit\Middleware;
+namespace Kodus\Session\Tests\Unit;
 
 
-use Kodus\Session\Middleware\CacheSessionMiddleware;
+use Kodus\Session\SessionMiddleware;
 use Kodus\Session\Tests\Unit\Mocks\CacheSessionStorageMock;
 use Kodus\Session\Tests\Unit\Mocks\DelegateMock;
 use Kodus\Session\Tests\Unit\Mocks\MockCache;
 use UnitTester;
 use Zend\Diactoros\ServerRequest;
 
-class CacheSessionMiddlewareCest
+class SessionMiddlewareCest
 {
     public function test(UnitTester $I)
     {
-        $I->wantToTest("CacheSessionMiddleware functionality");
+        $I->wantToTest("SessionMiddleware functionality");
 
         $cache = new MockCache();
         $storage = new CacheSessionStorageMock($cache, 3600);
         $delegate = new DelegateMock();
-        $middleware = new CacheSessionMiddleware($storage); // Subject under test
+        $middleware = new SessionMiddleware($storage); // Subject under test
 
         $key = "hello key";
         $value = "hello middleware";

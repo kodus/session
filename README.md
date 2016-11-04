@@ -495,7 +495,7 @@ cookie in the request object (or a new session ID is created).
 The changes to the session are committed when `CacheSessionStorage::commit($response)` is called. The method
  also adds a session cookie to the response.
 
-For an example of this have a look at the `CacheSessionMiddleware` class
+For an example of this have a look at the `SessionMiddleware` class
 
 An implementation of the PSR-15 middleware interface is also provided, and described in the next section.
 
@@ -568,8 +568,8 @@ cache.
 
 So as you might have guessed, this is a statement against PSR-6. Come on PSR-16, we are rooting for you!
 
-## CacheSessionMiddleware
-`CacheSessionMiddleware` is an implementation of the middleware interface from the proposed PSR-15 standard.
+## SessionMiddleware
+`SessionMiddleware` is an implementation of the middleware interface from the proposed PSR-15 standard.
 
 The `CacheSessionStorage` instance is given as a constructor argument. 
 

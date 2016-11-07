@@ -9,16 +9,14 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\SimpleCache\CacheInterface;
 
 /**
- * A session service that stores the session data in a PSR-16 compliant cache storage.
- *
- * get(), set(), flash(), unset(), and clear() actions are cached individually and stored to the cache at commit().
+ * A TransactionalSessionStorage adapter that stores the session data in a PSR-16 compliant cache storage.
  */
 class CacheSessionStorage implements TransactionalSessionStorage
 {
-    const COOKIE_KEY             = "sessionID";
-    const SESSION_INDEX_PREFIX   = "kodus.session.";
-    const FLASHES_STORAGE_INDEX  = "kodus.session.flashes";
-    const SESSION_EXPIRATION_KEY = "kodus.session.expiration.";
+    const COOKIE_KEY                = "sessionID";
+    const FLASHES_STORAGE_INDEX     = "kodus.session.flashes";
+    const SESSION_INDEX_PREFIX      = "kodus.session.";
+    const SESSION_EXPIRATION_PREFIX = "kodus.session.expiration.";
 
     /**
      * @var CacheInterface
@@ -134,36 +132,43 @@ class CacheSessionStorage implements TransactionalSessionStorage
 
     public function commit(ResponseInterface $response): ResponseInterface
     {
+        //Gather all write and remove operations in one array, and write it all in one action
+        //Because CacheStorage::get() returns null for a non-existing or deleted key, setting a value to null
+        //is equivalent to deleting it.
+        $write_batch = [];
+
         if ($this->clear_at_commit) {
             # CLEAR STORAGE (if clear() was called during the request)
             $this->storage->clear();
+        }
+
+        # CLEAR OLD FLASHES AND MARK NEW FLASHES FOR NEXT REQUEST.
+        # (If redirect or error response code, then keep old flashes for next request).
+        $flashes = $this->storage->get(self::FLASHES_STORAGE_INDEX) ?: [];
+
+        if ($response->getStatusCode() < 300) {
+            foreach ($flashes as $key) {
+                $write_batch[$this->storageKey($key)] = null;
+            }
+            $write_batch[self::FLASHES_STORAGE_INDEX] = $this->flashed;
         } else {
-            # CLEAR OLD FLASHES AND MARK NEW FLASHES FOR NEXT REQUEST.
-            # (If redirect or error response code, then keep old flashes for next request).
-            $flashes = $this->storage->get(self::FLASHES_STORAGE_INDEX) ?: [];
+            $write_batch[self::FLASHES_STORAGE_INDEX] = array_merge($flashes, $this->flashed);
+        }
 
-            if ($response->getStatusCode() < 300) {
-                foreach ($flashes as $key) {
-                    $this->storage->delete($this->storageKey($key));
-                }
-                $this->storage->set(self::FLASHES_STORAGE_INDEX, $this->flashed);
-            } else {
-                $this->storage->set(self::FLASHES_STORAGE_INDEX, array_merge($flashes, $this->flashed));
-            }
-
-            # DELETE SESSION MODELS THAT WERE REMOVED DURING THIS REQUEST
-            foreach ($this->removed as $key) {
-                $this->storage->delete($this->storageKey($key));
-            }
+        # DELETE SESSION MODELS THAT WERE REMOVED DURING THIS REQUEST
+        foreach ($this->removed as $key) {
+            $write_batch[$this->storageKey($key)] = null;
         }
 
         # WRITE OPERATIONS
-        foreach ($this->write_cache as $key => $type) {
-            $this->storage->set($this->storageKey($key), $type);
+        foreach ($this->write_cache as $key => $object) {
+            $write_batch[$this->storageKey($key)] = $object;
         }
 
         # SET EXPIRATION TIME FOR SESSION ID IN STORAGE.
-        $this->storage->set(self::SESSION_EXPIRATION_KEY . $this->session_id, $this->time() + $this->session_ttl);
+        $write_batch[self::SESSION_EXPIRATION_PREFIX . $this->session_id] = $this->time() + $this->session_ttl;
+
+        $this->storage->setMultiple($write_batch);
 
         # ADD COOKIE TO RESPONSE.
         $response = $this->addSessionCookie($response);
@@ -268,7 +273,7 @@ class CacheSessionStorage implements TransactionalSessionStorage
             return false;
         }
 
-        $expiration_time = $this->storage->get(self::SESSION_EXPIRATION_KEY . $session_id);
+        $expiration_time = $this->storage->get(self::SESSION_EXPIRATION_PREFIX . $session_id);
         if (is_int($expiration_time) && $expiration_time > $this->time()) {
             return true;
         }

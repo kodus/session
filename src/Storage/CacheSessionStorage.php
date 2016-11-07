@@ -3,7 +3,7 @@
 namespace Kodus\Session\Storage;
 
 use Kodus\Session\Component\UUID;
-use Kodus\Session\SessionStorage;
+use Kodus\Session\Interfaces\TransactionalSessionStorage;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\SimpleCache\CacheInterface;
@@ -13,7 +13,7 @@ use Psr\SimpleCache\CacheInterface;
  *
  * get(), set(), flash(), unset(), and clear() actions are cached individually and stored to the cache at commit().
  */
-class CacheSessionStorage implements SessionStorage
+class CacheSessionStorage implements TransactionalSessionStorage
 {
     const COOKIE_KEY             = "sessionID";
     const SESSION_INDEX_PREFIX   = "kodus.session.";

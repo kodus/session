@@ -4,7 +4,7 @@ namespace Kodus\Session\Tests\Unit;
 
 use Closure;
 use Exception;
-use Kodus\Session\SessionStorage;
+use Kodus\Session\Interfaces\SessionStorage;
 use UnitTester;
 
 /**

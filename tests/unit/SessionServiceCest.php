@@ -5,7 +5,7 @@ namespace Kodus\Session\Tests\Unit;
 use Closure;
 use Exception;
 use Kodus\Session\SessionService;
-use Kodus\Session\SessionStorage;
+use Kodus\Session\Interfaces\SessionStorage;
 use Kodus\Session\Storage\CacheSessionStorage;
 use Kodus\Session\Tests\Unit\SessionModels\TestSessionModelB;
 use Kodus\Session\Tests\Unit\Mocks\CacheSessionStorageMock;

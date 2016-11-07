@@ -2,6 +2,9 @@
 
 namespace Kodus\Session;
 
+use Kodus\Session\Interfaces\SessionModel;
+use Kodus\Session\Interfaces\SessionStorage;
+
 class SessionService
 {
     const STORAGE_KEY_PREFIX = "#kodus#sessionmodel#";

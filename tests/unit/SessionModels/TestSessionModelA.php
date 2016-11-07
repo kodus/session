@@ -3,7 +3,7 @@
 namespace Kodus\Session\Tests\Unit\SessionModels;
 
 
-use Kodus\Session\SessionModel;
+use Kodus\Session\Interfaces\SessionModel;
 
 class TestSessionModelA implements SessionModel
 {

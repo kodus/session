@@ -3,7 +3,7 @@
 namespace Kodus\Session\Tests\Unit\Storage;
 
 use Kodus\Session\Storage\CacheSessionStorage;
-use Kodus\Session\SessionStorage;
+use Kodus\Session\Interfaces\SessionStorage;
 use Kodus\Session\Tests\Unit\Mocks\CacheSessionStorageMock;
 use Kodus\Session\Tests\Unit\Mocks\MockCache;
 use Kodus\Session\Tests\Unit\SessionStorageTest;

@@ -4,7 +4,8 @@ namespace Kodus\Session;
 
 use Interop\Http\Middleware\DelegateInterface;
 use Interop\Http\Middleware\ServerMiddlewareInterface;
-use Kodus\Session\SessionStorage;
+use Kodus\Session\Interfaces\SessionStorage;
+use Kodus\Session\Interfaces\TransactionalSessionStorage;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**
@@ -22,7 +23,7 @@ class SessionMiddleware implements ServerMiddlewareInterface
      */
     private $session;
 
-    public function __construct(SessionStorage $session)
+    public function __construct(TransactionalSessionStorage $session)
     {
         $this->session = $session;
     }

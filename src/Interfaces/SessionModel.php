@@ -1,6 +1,6 @@
 <?php
 
-namespace Kodus\Session;
+namespace Kodus\Session\Interfaces;
 
 /**
  * SessionModel is a Marker Interface. This means that it's purpose is to mark a class as being a SessionModel.

@@ -14,7 +14,6 @@
         "php": "^7.0",
         "psr/http-message": "^1.0",
         "http-interop/http-middleware": "^0.2.0",
-        "kodus/simple-cache": "^0.1",
         "psr/simple-cache": "^0.1"
     },
     "require-dev": {

@@ -5,7 +5,7 @@ namespace Kodus\Session\Interfaces;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
-interface TransactionalSessionStorage extends SessionStorage
+interface TransactionalSessionStorage
 {
     /**
      * Initiate the session from the cookie params found in the server request

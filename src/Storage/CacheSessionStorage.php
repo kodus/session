@@ -3,6 +3,7 @@
 namespace Kodus\Session\Storage;
 
 use Kodus\Session\Component\UUID;
+use Kodus\Session\Interfaces\SessionStorage;
 use Kodus\Session\Interfaces\TransactionalSessionStorage;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -11,7 +12,7 @@ use Psr\SimpleCache\CacheInterface;
 /**
  * A TransactionalSessionStorage adapter that stores the session data in a PSR-16 compliant cache storage.
  */
-class CacheSessionStorage implements TransactionalSessionStorage
+class CacheSessionStorage implements SessionStorage, TransactionalSessionStorage
 {
     const COOKIE_KEY                = "sessionID";
     const FLASHES_STORAGE_INDEX     = "kodus.session.flashes";

@@ -4,12 +4,12 @@ A simple interface for storing and retrieving session data without the use of PH
 
 `kodus/session` requires PHP version 7.0 or newer.
 
-##Installation
+## Installation
 If your project is using composer, simply require the package:
 
 `composer require kodus/session`
 
-##Introduction
+## Introduction
 This library provides a way of working with session data that promotes type safety and simplicity, without
 relying on PHP's native session handling.
 
@@ -22,7 +22,7 @@ small amount of added workload of writing a small and simple data model.
 Write operations to the session are deffered until the end of the request, when they are "committed" to the storage.
 This prevents broken session states as a result of critical errors.
 
-##How to use
+## How to use
 
 ### Session models
 
@@ -78,7 +78,7 @@ The interface `SessionModel` is an example of a Marker interface.
 [You can read more about the Marker Interface Pattern on wikipedia.](https://en.wikipedia.org/wiki/Marker_interface_pattern)
 
 ### Session service
-####Storing and retrieving data
+#### Storing and retrieving data
 When you've created your session model, you'll of course want to store it in session. This is done with the 
 `SessionService` class.
 
@@ -105,7 +105,7 @@ is an instance of the type requested.
 There currently is no way of fetching specific classes in a generic and type-safe way in PHP 
 ("[Dreaming of Generics](https://wiki.php.net/rfc/generics)"&trade;).
 
-####Flash messages
+#### Flash messages
 It is also possible to store data in the session as flash messages. Flash messages is data that only stays in the 
 session for one additional request.
 
@@ -127,7 +127,7 @@ $error_msg->messages[] = "An error occured. This message will only be displayed 
 $session_service->flash($error_msg);
 ```
 
-####Removing data
+#### Removing data
 A session model can also be removed from the session storage completely:
 ```php
 $session_service->unset(UserSession::class);
@@ -180,9 +180,9 @@ invoke controllers or other software that might need to access the session servi
 Use `SessionMiddleware` if your framework supports PSR-15 middleware components, or use it as a reference for how to 
 implement a custom middleware component. 
 
-##Adapters
+## Adapters
 
-###CacheSessionStorage
+### CacheSessionStorage
 `CacheSessionStorage` uses an implementation of PSR-16's `CacheInterface` to store and fetch session data.
 
 We recommend the ScrapBook library as a cache provider for `CacheSessionStorage`.
@@ -205,7 +205,7 @@ $middleware = new SessionMiddleware($service);
 //Add $service to the DI-container.
 ```
 
-##Tips & Tricks
+## Tips & Tricks
 It's possible to add type safety for fetching session models, if you are willing to accept an extra layer
 of boiler plate code. This can be accomplished by making small, isolated services for working with specific session models.
 ```php

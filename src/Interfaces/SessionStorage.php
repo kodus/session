@@ -5,7 +5,7 @@ namespace Kodus\Session\Interfaces;
 /**
  * This interface defines an API for reading and writing key/value pairs in session.
  *
- * All write/remove/clear operations MUST be deffered until the end of the request.
+ * All write/remove/clear operations MUST be deferred until the end of the request.
  *
  * Implementations of SessionStorage should also implement TransactionalSessionStorage.
  *

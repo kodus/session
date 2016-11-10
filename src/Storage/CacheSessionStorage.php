@@ -71,14 +71,14 @@ class CacheSessionStorage implements SessionStorage, TransactionalSessionStorage
 
     public function flash(string $key, $value)
     {
-        $this->writeDeffered($key, $value, true);
+        $this->writeDeferred($key, $value, true);
 
         return;
     }
 
     public function set(string $key, $value)
     {
-        $this->writeDeffered($key, $value, false);
+        $this->writeDeferred($key, $value, false);
 
         return;
     }
@@ -181,13 +181,13 @@ class CacheSessionStorage implements SessionStorage, TransactionalSessionStorage
     }
 
     /**
-     * A deffered write operation. The actual write operation will occur at commit()
+     * A deferred write operation. The actual write operation will occur at commit()
      *
      * @param string $key
      * @param mixed  $value
      * @param bool   $is_flash
      */
-    protected function writeDeffered(string $key, $value, bool $is_flash = false)
+    protected function writeDeferred(string $key, $value, bool $is_flash = false)
     {
         unset($this->removed[$key]);
 

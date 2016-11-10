@@ -7,7 +7,7 @@ use Psr\Http\Message\ServerRequestInterface;
 
 /**
  * This interface defines an API for beginning a new session based on a PSR-7 RequestInterface object,
- * and committing defferred changes to the storage.
+ * and committing deferred changes to the storage.
  *
  * Implementations of TransactionalSessionStorage should also implement SessionStorage.
  *

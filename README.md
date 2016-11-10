@@ -164,8 +164,6 @@ $session_storage->clear();
 stack, by passing a PSR-7 compliant request object to the storage before delegating, and passing the PSR-7 compliant
 response object to the storage after delegating.
 
-When a response is returned from the next middleware, this is passed to `TransactionalSessionStorage`
-
 `SessionStorage` is exposed to the `SessionService` and the DI-container. `TransactionalSessionStorage` is exposed
 to the middleware.
 

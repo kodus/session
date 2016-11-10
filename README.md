@@ -1,596 +1,235 @@
 kodus/session
 =============
+A simple interface for storing and retrieving session data without the use of PHP's native session handling.
 
-The `kodus/session` library provides a set of classes and interfaces for working with session data.
+`kodus/session` requires PHP version 7.0 or newer.
 
-The goal is to provide a simple, yet type-safe way of working with session values.
+##Installation
+If your project is using composer, simply require the package:
 
-The `kodus/session` library requires `PHP` &ge; `7.0`
+`composer require kodus/session`
 
-# Installation
+##Introduction
+This library provides a way of working with session data that promotes type safety and simplicity, without
+relying on PHP's native session handling.
 
-To install the `kodus/session` library, we recommend using composer packages.
-Simply add it to you list of composer dependencies by calling:
+Type safety is accomplished by gathering the session data into simple session model classes, whose attributes and methods
+can be type hinted, and storing instances of these in session, rather than storing values individually.
 
-```
-user@device:~$ composer require kodus/session
-```
+This approach requires an added amount of boilerplate code. The advantage of these session models easily outweighs the
+small amount of added workload of writing a small and simple data model.
 
-# Terminology
+Write operations to the session are deffered until the end of the request, when they are "committed" to the storage.
+This prevents broken session states as a result of critical errors.
 
-**Storage provider:** A specific implementation of the provided `SessionStorage` interface.
+##How to use
 
-**Physical storage:** The actual storage solution used by an implementation of `SessionStorage`.
-E.g. The *storage provider* `CacheSessionStorage` uses a cache provider as its *physical storage*.
+### Session models
 
-## Disabling PHP native session
-Depending on which implementation of `SessionService` you choose and whether or not you want to allow 3rd party
-software to use native session handling, you might wish to disable native session handling.
+When storing data in session, the first step is to define you session model. 
 
-[Read more about PHP's native session handling settings here.](http://php.net/manual/en/session.configuration.php)
-
-# Overview
-This library provides a service class `SessionService` and two interfaces `SessionModel`, and `SessionStorage`. 
-
-`SessionService` is a service layer on top of `SessionStorage`, that provides an API for working with dedicated session
-model classes.
-
-`SessionStorage` defines a key/value API for storing values to and fetching values from the session storage.
-
-## Session models
-
-When storing a set of related values in storage, we wish to work with type hinted values, that are grouped by domain.
-
-This can be done by collecting these values in a session model class. An example of a set of session values, might
-be the values stored in session for a user that sucessfully logged in to your site:
+A good example of a session model could be a user session model. Let's look at a user session, where both the ID and the
+full name of the user needs to be stored in session:
 
 ```php
-namespace Vendor\MyProject\UserModule;
-
-class MyUserSession
+class UserSession implements SessionModel
 {
-    /** 
-     * @var int $id The id of the user currently logged in 
-     */
-    public $id;
-    
-    /** 
-     * @var string $email The email of the user currently logged in 
-     */
-    public $email;
-    
-    /** 
-     * @var string $full_name The full name of the user currently logged in 
-     */
-    public $full_name;
-}
-```
-In the example above, the values are kept in public attributes of the class. These are only type-hinted by doc-blocks.
-
-If you prefer strict types, then you can change the attributes to private, and implement accessor methods with type hints.
-
-```php 
-
-declare(strict_types = 1);
-
-namespace Vendor\MyProject\UserModule;
-
-class MyUserSession
-{
-    /** 
-     * @var int $id The id of the user currently logged in 
-     */
-    private $id;
-    
-    /** 
-     * @var string $email The email of the user currently logged in 
-     */
-    private $email;
-    
-    /** 
-     * @var string $full_name The full name of the user currently logged in 
-     */
+    private $user_id;
     private $full_name;
     
-    public function getID(): int
+    public function setUserID(int $user_id)
     {
-        return $this->id;
+        $this->user_id = $user_id;
     }
     
-    public function setID(int $id)
+    public function getUserID(): int
     {
-        $this->id = $id;
+        return $this->user_id;
     }
     
-    //Etc.
+    public function setFullName(string $full_name)
+    {
+        $this->full_name = $full_name;
+    }
+    
+    public function getFullName(): string
+    {
+        return $this->full_name;
+    }
 }
 ```
 
-**For this type of model class we assume the following:**
+These models should be encapsulated to the current domain. In other words, don't be tempted to collect all session data
+into a big "catch-all" session model.
 
-1. It must be possible to serialize and unserialize the session model without any loss of data.
-*  A session model should only consist of the data stored for the session.
-*  A session model should not have any other functionality, not related to storing the values.
- 
-To ensure that session models are dedicated session model classes, we introduce a marker interface `SessionModel`.
+In the example above, `UserSession` uses regular accessor methods to access data in the model. This design choice is
+not dictated by the interfaces. You may choose public attributes, setting data through the constructor, or whatever
+style you prefer.
+
+The requirements for session models are:
+
+**It is required that instances of `SessionModel` must be able to be serialized and deserialized by native PHP 
+serialization functions without loss of data.**
+
+**It is strongly encouraged that implementations of `SessionModel` should only have attributes and methods specifically 
+related to storing session data.**
+
+The interface `SessionModel` is an example of a Marker interface. 
+[You can read more about the Marker Interface Pattern on wikipedia.](https://en.wikipedia.org/wiki/Marker_interface_pattern)
+
+### Session service
+####Storing and retrieving data
+When you've created your session model, you'll of course want to store it in session. This is done with the 
+`SessionService` class.
 
 ```php
-interface SessionModel { /* Marker interface */ }
+$user_session = new UserSession();
+$user_session->setUserID(1234);
+$user_session->setFullName("Batman Johnson");
+
+$session_service->set($user_session);
 ```
 
-This interface only has one purpose: to mark classes as session model classes.
+Each session model are stored by their type. This means that only one instance of a specific session model can be
+stored per session. Instances are then fetched from the service by its type:
 
 ```php
-class MyUserSession extends Kodus\Session\SessionModel
+/** @var UserSession $user_session */
+$user_session = $session_service->get(UserSession::class);
+
+echo $user_session->getFullName(); // output: "Batman Johnson"
+```
+At this point you will need to add a type hint in a docblock, if you want your IDE to recognize that the object returned
+is an instance of the type requested.
+
+There currently is no way of fetching specific classes in a generic and type-safe way in PHP 
+("[Dreaming of Generics](https://wiki.php.net/rfc/generics)"&trade;).
+
+####Flash messages
+It is also possible to store data in the session as flash messages. Flash messages is data that only stays in the 
+session for one additional request.
+
+This is useful for message data, like errors or confirmation messages, that should only be presented to the end user
+once.
+
+Flash messages are stored in session models, just like normal session data.
+
+```php
+class ErrorMessages implements SessionModel
 {
-    //....
-}
-```
-
-[Read more about the Marker Interface Pattern here.](https://en.wikipedia.org/wiki/Marker_interface_pattern)
-
-As you will see in the next section, `SessionService` does not accept any objects that are not implementations of 
-`SessionModel` even though it is an empty interface. 
-
-This serves two purposes:
-
-1. Since there is no general "object" type in PHP, this prevents anyone from trying to store scalar types or closures
-with `SessionService`.
-
-2. This forces developers to at least try to separate the concern of storing session values from other concerns.
-
-*You could at this point object that a developer could simply add `implements SessionModel` to a class that is not dedicated
-for session storage. That's true. We wish that guy the best of luck. In the meantime the rest of us can read up on 
-the [Single Responsibility Principle](https://en.wikipedia.org/wiki/Single_responsibility_principle) and
-[Separation of Concerns](https://en.wikipedia.org/wiki/Separation_of_concerns)*
-
-## SessionService
-The `SessionService` class provides an API for storing instances of `SessionModel` in the session storage.
-
-#### set()
-```php
-SessionService::set(SessionModel $object): void
-```
-Save the state of a specific `SessionModel` object to the session storage.
-
-#### flash()
-```php
-SessionService::flash(SessionModel $object): void
-```
-Flash the state of a specific `SessionModel` object to the session storage.
-
-Flashed objects only live through one succesful request. A sucessful request is defined as a
-request that resolves to a response with status code &lt; 300.
-
-#### get()
-```php
-SessionService::get(string $type): SessionModel
-```
-Fetch an instance of a session model stored in session by it's type.
-
-PHP limits us to typehinting the return value as `SessionModel` 
-(*dreaming of [generics](https://en.wikipedia.org/wiki/Generic_programming)&trade;*).
-
-So when using the `get()` method, we recommend you use docblocks for correct typehinting.
-
-**Example:**
-```php
-// In this example we fetch the stored instance of MyUserSession from the previous examples. 
-
-/** @var MyUserSession $my_user_session */
-$my_user_session = $session_service->get(MyUserSession::class);
-
-$user = $user_repository->getUser($my_user_session->id);
-```
-Docblocks has no runtime effect, but your IDE will be able to inspect, auto-complete and all the other neat things, your IDE does
-(providing you use an IDE with these features of course).
-
-#### has()
-```php
-SessionService::has(string $type): bool
-```
-Returns true if an instance of the given type has been stored in the session.
-
-#### unset()
-```php
-SessionService::unset(string $type): void
-```
-Removes any instance of the given type from the session.
-
-#### clear()
-```php
-SessionService::clear(void): void
-```
-Clears all values from the session storage.
-
-#### sessionID()
-```php
-SessionService::sessionID(void): string
-```
-Returns the unique identifier for the current session.
-
----
-
-## SessionStorage
-
-The interface `SessionStorage` defines a set of methods for performing read and write operations to the session.
-
-#### set()
-```php
-SessionStorage::set(string $key, mixed $value): void
-```
-Adds a key/value pair to the session storage. It is assumed that the value is of a type that can be serialized and
-deserialized by PHP. [More about serialization here](http://php.net/manual/en/function.serialize.php).
-
-#### flash()
-```php
-SessionStorage::flash(string $key, mixed $value): void
-```
-Adds a flash key/value pair to the session storage. Flash values only live through one succesful request.
-A sucessful request is defined as a request that resolves to a response with status code &lt; 300.
-
-#### get()
-```php
-SessionStorage::get(string $key): mixed
-```
-Get the value stored under the key given. Implementations should throw a `RuntimeException` if no value is stored
-under the given key.
-
-Never call `SessionStorage::get($key)` if `SessionStorage::has($key)` returns false for the same key.
-
-#### has()
-```php
-SessionStorage::has(string $key): bool
-```
-Returns true if a value is stored in session under the given key. 
-
-#### unset()
-```php
-SessionStorage::unset(string $key): void
-```
-Remove any value stored in the current session for the given key.
-
-#### clear()
-```php
-SessionStorage::clear(): void
-```
-Remove all values for the current session.
-
-#### sessionID()
-```php
-SessionStorage::sessionID(): string
-```
-Returns the session ID given to the specific client session.
-
----
-
-### Why do I have to call `has()` before calling `get()`
-If you are wondering why `SessionStorage::get()` throws an exception instead of returning `null` or `false`, then let's
-see what happens if we were to do that:
-
-```php
-// Imagine that get() returns false if nothing is stored for a requested key:
-$value = $session_storage->get("a boolean value");
-
-if (! $value) {
-    // So... does this happen because false was stored or because nothing was stored?
-}
-```
-If `get()` returns any value on a non-hit (false, null, 0, "nothing here", etc.) then you aren't "able" to store that
-value. It might actually be stored in the physical storage, but when you call `get()` it would be impossible to tell
- if that value or nothing was stored.
-
-Instead we do this:
-```php
-
-if ($session_storage->has("a boolean value") {
-    $value = $session_storage->get("a boolean value");
-    if (! $value) {
-        //This time we know exactly why we are here.
-    }
+    /** @var string[] */
+    public $messages = [];
 }
 
+$error_msg = new ErrorMessages();
+$error_msg->messages[] = "An error occured. This message will only be displayed once";
+
+$session_service->flash($error_msg);
 ```
 
-### Deferring `SessionStorage` operations
-Implementations of `SessionStorage` may choose to defer write or remove operations to the *physical storage*.
+####Removing data
+A session model can also be removed from the session storage completely:
+```php
+$session_service->unset(UserSession::class);
+```
 
-*Implementations of `SessionStorage`, that defer operations, MUST behave as if the operations are not deferred.* 
+It is also possible to clear the session completely:
+```php
+$session_service->clear();
+```
 
-In the example below, we imagine a storage provider, that defers write operations to the physical storage until the end
-of the request life cycle. 
+### Session storage
+
+Session storage can be customized by providing custom implementations or extensions of the `SessionStorage` interface.
+
+`SessionStorage` defines a simple key/value store API, that is very similar to the methods of `SessionService`.
+
+In cases where you only need to store single values or otherwise find session models to be overkill, values can be 
+stored directly to instances of `SessionStorage`.
 
 ```php
-$session_storage->set("a key", "a value");
+$session_storage->set("user id", 1234);
 
-//The key/value has not yet been written to the physical storage.
-//But we can still fetch its value as if it was.
+$user_id = $session_storage->get("user id"); // returns 1234
 
-if ($session_storage->has("a key")) {
-    echo $session_storage->get("a key");
-} else {
-    //This doesn't happen.
-}
+$session_storage->unset("user id");
+
+$user_id = $session_storage->get("user id"); // returns null
+
+$session_storage->clear();
 ```
 
-# Usage
+### Transactional session storage
+`TransactionalSessionStorage` defines an interface for hooking session storage into a middleware
+stack, by passing a PSR-7 compliant request object to the storage before delegating, and passing the PSR-7 compliant
+response object to the storage after delegating.
 
-In the examples above session model class for a user session was shown, `MyUserSession`.
+When a response is returned from the next middleware, this is passed to `TransactionalSessionStorage`
 
-Let's have a look at how you would use this in a typical MVC structure. 
+`SessionStorage` is exposed to the `SessionService` and the DI-container. `TransactionalSessionStorage` is exposed
+to the middleware.
 
-We use the basic version, with public attributes instead of accessor methods.
+**Session storage adapters should implement both SessionStorage and TransactionalSessionStorage**
+
+### SessionMiddleware
+`SessionMiddleware` defines a middleware component according to the PSR-15 interface `MiddlewareInterface`.
+
+`SessionMiddleware` is designed to be at the top of the middleware stack, before any middleware components that
+invoke controllers or other software that might need to access the session service.
+
+Use `SessionMiddleware` if your framework supports PSR-15 middleware components, or use it as a reference for how to 
+implement a custom middleware component. 
+
+##Adapters
+
+###CacheSessionStorage
+`CacheSessionStorage` uses an implementation of PSR-16's `CacheInterface` to store and fetch session data.
+
+We recommend the ScrapBook library as a cache provider for `CacheSessionStorage`.
+
+[Find ScrapBook on Github](https://github.com/matthiasmullie/scrapbook).
+
+
+## Bootstrapping
+This example shows how to bootstrap `SessionService` and `SessionMiddleware` using the  `CacheSessionStorage` adapter:
 ```php
-namespace Vendor\MyProject\UserModule;
+// initialize $cache according to your cache provider of choice.
 
-class MyUserSession implements Kodus\Session\SessionModel
-{
-    /** 
-     * @var int $id The id of the user currently logged in 
-     */
-    public $id;
-    
-    /** 
-     * @var string $email The email of the user currently logged in 
-     */
-    public $email;
-    
-    /** 
-     * @var string $full_name The full name of the user currently logged in 
-     */
-    public $full_name;
-}
+$storage = new CacheSessionStorage($cache);
+
+$service = new SessionService($storage);
+
+$middleware = new SessionMiddleware($service);
+
+//Add $middleware to the middleware stack.
+//Add $service to the DI-container.
 ```
 
-A likely place for storing an instance of this session model would be a Controller class that logs in a user.
-
-```php
-namespace Vendor\MyProject\UserModule;
-
-use Kodus\Session\SessionService;
-
-class LoginController
-{
-    /** @var UserService */
-    private $user_service;
-    /** @var SessionService */
-    private $session;
-    
-    public function __construct(UserService $user_service, SessionService $session)
-    {
-        $this->user_service = $user_service;
-        $this->session = $session;
-    }
-    
-    public function run($username, $password)
-    {
-        $authenticated = $this->user_service->authenticate($username, $password);
-        if ($authenticated) {
-            $user = $this->user_service->getUser($username);
-            
-            $user_session = new MyUserSession();
-            $user_session->id = $user->getID();
-            $user_session->email = $user->getEmail();
-            $user_session->full_name = $user->getFirstName() . ' ' . $user->getLastName();
-            
-            $this->session->set($user_session);
-            
-            //Redirect to relevant page here
-        }
-        
-        //Redirect to login page here 
-    }
-}
-
-```
-
-Let's look at a controller where you might want to use the session model we just stored in session.
-Notice again here, that we are typehinting the fetched instance with at docblock.
-
-```php
-class WelcomePageController
-{
-    /** @var SessionService */
-    private $session;
-    
-    public function __construct(SessionService $session)
-    {
-        $this->session = $session;
-    }
-    
-    public function run($username, $password)
-    {
-        if ($this->session->has(MyUserSession::class)) {
-            /** @var MyUserSession $user_session */
-            $user_session = $this->get(MyUserSession::class);
-            
-            $view = new WelcomePageView();
-            $view->setMessage("Welcome to Kodus, {$user_session->fullname}.");
-            
-            //Render view and return
-        } else {
-            //Redirect to login page here 
-        }
-    }
-}
-
-```
-
-If you are tired of writing docblocks, you could wrap your specific session model handling into a simple wrapper class:
-
+##Tips & Tricks
+It's possible to add type safety for fetching session models, if you are willing to accept an extra layer
+of boiler plate code. This can be accomplished by making small, isolated services for working with specific session models.
 ```php
 class UserSessionService
 {
     /** @var SessionService */
-    private $session;
+    private $session_service;
     
-    public function __construct(SessionService $session)
+    public function __construct(SessionService $session_service)
     {
-        $this->session = $session;
+        $this->session_service = $session_service;
     }
     
     public function set(UserSession $user_session)
     {
-        $this->session->set($user_session);
+        $this->session_service->set($user_session);
     }
     
     public function get(): UserSession
     {
-        if ($this->session->has(UserSession::class) {
-            return $this->session->get(UserSession::class);
-        }
-        
-        return null;
+        return $this->session_service->get(UserSession::class);
     }
-    
-    public function unset()
-    {
-        $this->session->unset(UserSession::class);
-    }
+    //... etc.
 }
 ```
-With this wrapper class you would get a neat little handler class you could dependency inject into your controller
-instead of the general `SessionService`. 
-
-You might think it's a bit much to avoid writing a docblock once in a while.
-You might be right. But it is a small and simple pattern, that won't change, so it shouldn't take more than 5 minutes to
-write a wrapper class like this.
-
-
-## "Why not just use the simple key/value approach of `SessionStorage` for all session handling?
-
-The general philosphy of the Kodus team is to keep things as type safe and simple as possible.
-This is also the goal of the `kodus/session` library.
-
-The advantages to type safe code are many. Among them are code completion and code inspection. Modern
-IDEs like PHPStorm or NetBeans can interpret type safe code and suggest or auto complete code. It can also make
-inspections to make sure you haven't made any mistakes that can be caught by checking types. Some IDE's will, to a
-certain extend, even refactor your code for you.
-
-The down side of this approach is having a lot of "boilerplate" code. Every domain segment of session data needs a
-new session class in the code base. The Kodus team considers this a very small price to pay for the major advantages
-to type safe code.
-
-
-# Storage providers
-
-## CacheSessionService
-
-The class `Kodus\Session\Storage\CacheSessionStorage` provides an implementation of `SessionStorage` that uses a
-PSR-16 compliant cache provider as it's physical storage.
-
-**Bootstrapping `SessionService` with `CacheSessionStorage`:**
-```php
-    $cache = new GenericPSR16CacheProvider();
-    $storage = new CacheSessionStorage($cache);
-    $service = new SessionService($storage); //et voilà!
-```
-
-### Usage
-`CacheSessionService` is designed to work with PSR-7 HTTP message interfaces and being hooked up with middleware.
-
-A session is initialised by calling `CacheSessionStorage::begin($request)`. The session is chosen by the session
-cookie in the request object (or a new session ID is created).
-
-The changes to the session are committed when `CacheSessionStorage::commit($response)` is called. The method
- also adds a session cookie to the response.
-
-For an example of this have a look at the `SessionMiddleware` class
-
-An implementation of the PSR-15 middleware interface is also provided, and described in the next section.
-
-If you need a PSR-16 cache provider for you caching technology, we recommend having a 
-look at [https://github.com/matthiasmullie/scrapbook](https://github.com/matthiasmullie/scrapbook).
-
-### Why PSR-16 instead of PSR-6?
-If you are familiar with the PSR standards, you might ask why we would use a standard that hasn't yet been approved,
-when there is already an official cache standard in PSR-6? That's a good question dear reader, nice work!
-
-[PSR-6](http://www.php-fig.org/psr/psr-6/) has been a controversial one. Have a look at these articles: 
-["PSR-6 has serious problems"](http://andrewcarteruk.github.io/programming/2015/12/07/psr-6-has-serious-problems.html) - 
-Andrew Carter, and [An open letter to PHP-FIG](http://blog.ircmaxell.com/2014/10/an-open-letter-to-php-fig.html) - Anthony Ferrara.
-
-The reason we choose PSR-16 over PSR-6 is that the PSR-6 interfaces have an unfortunate structure, that makes it 
-impossible to implement functionality that works with the interfaces provided by PSR-6 without knowing the specific 
-implementation. *That is a major problem for an interface!*
-
-Too see why this is the case, have a look at what happens if you try to implement the `SessionStorage::set()` method.
-
-```php
-class PSR6CacheSessionStorage implements SessionStorage
-{
-    public function __construct(CacheItemPoolInterface $cache_pool}
-    {
-        //Here we use an (unknown) implementation of CacheItemPoolInterface 
-        $this->cache_pool = $cache_pool;
-    }
-    public function set(string $key, $value)
-    {
-        //To feed a key/value pair to the cache we need to create an instance of CacheItemInterface
-        //For this we need a specific implementation to work with...
-        $cache_item = new CustomCacheItem($key);
-        $cache_item->set($value);
-        $this->cache_pool->save($cache_item);
-    }
-}
-```
-So at this point we've chosen a specific implementation of `CacheItemInterface`. But that's not a problem, because
-interfaces define a generic way of interacting with an object, so as long as we implement the interface, we should be good,
-right? Well... turns out that it won't.
-
-If you notice that `CacheItemInterface` doesn't define any way of retrieving important values from the instances.
-There is no defined way of fetching expiration dates or the key of the key/value pair(!). 
-
-So let's say we put the key in a private attribute called `$key`, and we can set it in the constructor:
-```php
-class CustomCacheItem implements Psr\Cache\CacheItemInterface
-{
-    private $key;
-    
-    public function __construct($key)
-    {
-        $this->key = $key;
-    }
-    //... methods go here
-}
-```
-
-If we implement the class like this, we can only use it with an implementation of `CacheItemPoolInterface` that we know
-will use class reflection to fetch the private variable.
-
-We could change it up and make a public `getKey()` method. But it is not part of the interface, so again, we need
-to use an implementation of the pool interface that we know uses the `getKey()` method.
-
-So the conclusion is: If you need to create new values for the cache, you can not depend on the generic PSR-6 interfaces.
-You will need to know the specific implementation, thus rendering the interfaces useless. 
-This leads to the general conclusion, that you can only depend on PSR-6 interfaces if you only need to read from the 
-cache.
-
-So as you might have guessed, this is a statement against PSR-6. Come on PSR-16, we are rooting for you!
-
-## SessionMiddleware
-`SessionMiddleware` is an implementation of the middleware interface from the proposed PSR-15 standard.
-
-The `CacheSessionStorage` instance is given as a constructor argument. 
-
-The middleware begins the current session from the PSR-7 `RequestInterface` instance, 
-delegates to the next middleware, and adds the cookie to the response before returning.
-
-```php
-    public function __construct(CacheSessionStorage $session)
-    {
-        $this->session = $session;
-    }
-
-    public function process(ServerRequestInterface $request, DelegateInterface $delegate)
-    {
-        $this->session->begin($request);
-
-        $response = $delegate->process($request);
-
-        $response = $this->session->commit($response);
-
-        return $response;
-    }
-```
-The CacheSessionStorage defers operations until the commit method is called.
+This might seem like a lot of code to get a specific type hint on the get method, so we'll leave this design choice up
+ to you. 

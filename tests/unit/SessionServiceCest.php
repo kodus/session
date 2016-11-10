@@ -11,7 +11,6 @@ use Kodus\Session\Tests\Unit\SessionModels\TestSessionModelB;
 use Kodus\Session\Tests\Unit\Mocks\CacheSessionStorageMock;
 use Kodus\Session\Tests\Unit\SessionModels\TestSessionModelA;
 use Kodus\Session\Tests\Unit\Mocks\MockCache;
-use RuntimeException;
 use UnitTester;
 use Zend\Diactoros\Response;
 use Zend\Diactoros\ServerRequest;

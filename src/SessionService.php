@@ -1,188 +1,112 @@
-<?php
+<?php declare(strict_types = 1);
 
 namespace Kodus\Session;
 
+use Kodus\Session\Interfaces\SessionModel;
+use Kodus\Session\Interfaces\SessionStorage;
 
-use Closure;
-use ReflectionFunction;
-
-class SessionService implements SessionContainer
+class SessionService
 {
-    /**
-     * @const string
-     */
-    const FLASHES_STORAGE_INDEX = "kodus.session.flashes";
+    const STORAGE_KEY_PREFIX = "#kodus#sessionmodel#";
 
     /**
      * @var SessionStorage
      */
     private $storage;
 
-    /**
-     * @var array
-     */
-    private $write_cache = [];
-
-    /**
-     * @var array
-     */
-    private $read_cache = [];
-
-    /**
-     * @var array
-     */
-    private $removed = [];
-
-    /**
-     * @var bool
-     */
-    private $cleared = false;
-
-    /**
-     * @var array
-     */
-    private $flashed = [];
-
     public function __construct(SessionStorage $storage)
     {
         $this->storage = $storage;
     }
 
-    public function flash(Closure $updater)
+    /**
+     * Set a SessionModel object in the session storage.
+     *
+     * @param SessionModel $object
+     *
+     * @return void
+     */
+    public function set(SessionModel $object)
     {
-        $this->update($updater, true);
+        $this->storage->set($this->storageKey($object), $object);
     }
 
-    public function write(Closure $updater)
+    /**
+     * Set an object in the SessionService state cache and mark it as a "flash" message.
+     *
+     * "Flash" messages will only live through the next request, that returns 2xx HTML response codes.
+     *
+     * That means that you can expect the flash messages to live through a redirect result, so for example if you have
+     * multiple redirects in a POST-Redirect-GET pattern solution, the flash message is still available when you reach
+     * the GET request.
+     *
+     * @param SessionModel $object
+     *
+     * @return void
+     */
+    public function flash(SessionModel $object)
     {
-        $this->update($updater);
+        $this->storage->flash($this->storageKey($object), $object);
     }
 
-    public function read(&$object)
+    /**
+     * Read the instance of $type from the session storage.
+     *
+     * If the storage does not have an instance of that type, the SessionService implementation SHOULD throw a
+     * RuntimeException, rather than return null.
+     *
+     * This method should only be called with parameter $type, if SessionService::has($type) returns true
+     *
+     * @param string $type The class name of the object to be read from the session storage
+     *
+     * @return SessionModel|null
+     */
+    public function get(string $type)
     {
-        $type = get_class($object);
-
-        $object = $this->fetch($type, false) ?: $this->create($type, false);
+        return $this->storage->get($this->storageKey($type));
     }
 
-    public function remove($type)
+    /**
+     * Remove any instance of the class $type from the session.
+     *
+     * @param string $type
+     *
+     * @return void
+     */
+    public function unset(string $type)
     {
-        unset($this->write_cache[$type]);
-        unset($this->read_cache[$type]);
-        $this->removed[$type] = $type;
+        $this->storage->unset($this->storageKey($type));
     }
 
+    /**
+     * Clear all objects stored in session on next commit().
+     *
+     * Any subsequent writes to the session are valid and stored on commit().
+     *
+     * @return void
+     */
     public function clear()
     {
-        foreach ($this->write_cache as $type => $object) {
-            unset($this->write_cache[$type]);
-        }
-
-        $this->cleared = true;
-    }
-
-    public function commit()
-    {
-        if ($this->cleared) {
-            $this->storage->clear();
-        }
-
-        $flashes = $this->storage->get(self::FLASHES_STORAGE_INDEX) ?: [];
-
-        foreach ($flashes as $type) {
-            $this->storage->remove($type);
-        }
-
-        foreach ($this->write_cache as $type => $object) {
-            $this->storage->set($type, $object);
-        }
-
-        $this->storage->set(self::FLASHES_STORAGE_INDEX, $this->flashed);
-
-        $this->read_cache = [];
-        $this->write_cache = [];
-        $this->cleared = false;
+        $this->storage->clear();
     }
 
     /**
-     * @param Closure $updater Closure for updating the values in the session model(s)
-     * @param bool    $flash   If true, the session model(s) updated by the closure are marked as flash sessions
+     * Returns the ID of the current session as a string.
+     *
+     * @return string
      */
-    protected function update(Closure $updater, $flash = false)
+    public function getSessionID(): string
     {
-        $reflection = new ReflectionFunction($updater);
-
-        $params = $reflection->getParameters();
-
-        $args = [];
-
-        foreach ($params as $param) {
-            $type = $param->getClass()->getName();
-
-            if ($param->isDefaultValueAvailable()) {
-                $args[] = $this->fetch($type) ?: $param->getDefaultValue();
-            } else {
-                $args[] = $this->fetch($type) ?: $this->create($type);
-            }
-
-            if ($flash) {
-                $this->flashed[$type] = $type;
-            } else {
-                unset($this->flashed[$type]);
-            }
-
-            unset($this->removed[$type]);
-        }
-
-        call_user_func_array($updater, $args);
+        return $this->storage->getSessionID();
     }
 
     /**
-     * Fetch the stored session object by its type. The object is fetched from either the read cache if it is in there.
-     * If there isn't an instance in the read cache, the object is fetched from storage.
+     * @param SessionModel|string $object_or_type
      *
-     * If the second parameter is set to true (default), the object is also registered in the write cache, and will
-     * be written to storage on calling commit().
-     *
-     * @param string $type           The type (class name) of the object to fetch from storage or read cache
-     * @param bool   $update_storage If true, the object will be set in both the read and write cache
-     *
-     * @return mixed|null
+     * @return string
      */
-    private function fetch($type, $update_storage = true)
+    private function storageKey($object_or_type): string
     {
-        if (@$this->removed[$type]) {
-            return null;
-        } else {
-            $this->read_cache[$type] = @$this->read_cache[$type] ?: $this->storage->get($type);
-        }
-
-        if ($update_storage && $this->read_cache[$type]) {
-            $this->write_cache[$type] = $this->read_cache[$type];
-        }
-
-        return $this->read_cache[$type];
-    }
-
-    /**
-     * Create an object of the given type and store it in the read_cache.
-     *
-     * If the second parameter is set to true (default), the object is also registered in the write cache, and will
-     * be written to storage on calling commit().
-     *
-     * @param string $type           The type (class name) of the object to create
-     * @param bool   $update_storage If true, the object will be set in both the read and write cache
-     *
-     * @return mixed
-     */
-    private function create($type, $update_storage = true)
-    {
-        $this->read_cache[$type] = new $type;
-
-        if ($update_storage) {
-            $this->write_cache[$type] = $this->read_cache[$type];
-        }
-
-        return $this->read_cache[$type];
+        return self::STORAGE_KEY_PREFIX . (is_string($object_or_type) ? $object_or_type : get_class($object_or_type));
     }
 }

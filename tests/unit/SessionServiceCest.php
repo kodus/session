@@ -1,171 +1,171 @@
 <?php
 
-namespace Kodus\Test\Unit;
+namespace Kodus\Session\Tests\Unit;
 
+use Closure;
+use Exception;
 use Kodus\Session\SessionService;
-use Kodus\Session\SessionStorage;
+use Kodus\Session\Interfaces\SessionStorage;
+use Kodus\Session\Storage\CacheSessionStorage;
+use Kodus\Session\Tests\Unit\SessionModels\TestSessionModelB;
+use Kodus\Session\Tests\Unit\Mocks\CacheSessionStorageMock;
+use Kodus\Session\Tests\Unit\SessionModels\TestSessionModelA;
+use Kodus\Session\Tests\Unit\Mocks\MockCache;
 use UnitTester;
+use Zend\Diactoros\Response;
+use Zend\Diactoros\ServerRequest;
 
 class SessionServiceCest
 {
-    public function pokeAndProd(UnitTester $I)
-    {
-        $storage = new MockStorage("test");
-        $service = new SessionService($storage);
-
-        $value = "hello";
-
-        # How to write sessions
-        $service->write(function (Foo $foo) use ($value) {
-            $foo->bar = $value;
-        });
-
-        $service->write(function (Baz $baz) use ($value) {
-            $baz->qux = $value;
-        });
-
-        # How to read sessions
-        $foo = new Foo();
-        $service->read($foo);
-
-        $baz = new Baz();
-        $service->read($baz);
-
-        $I->assertSame($value, $foo->bar);
-
-        $service->commit();
-        $service = new SessionService($storage);
-
-        $I->assertEquals($storage->get(Foo::class), $foo);
-        $I->assertEquals($storage->get(Baz::class), $baz);
-
-        # Clearing
-        $service->clear();
-
-        $new_value = "new value";
-
-        $service->write(function (Baz $baz) use ($new_value) {
-            $baz->qux = $new_value;
-        });
-
-        $service->read($baz);
-
-        $service->commit();
-
-        $I->assertNotEquals($storage->get(Foo::class), $foo);
-        $I->assertEquals($storage->get(Baz::class), $baz);
-        $I->assertSame($new_value, $baz->qux);
-
-        # Flashes
-        $service->flash(function (Foo $foo) use ($new_value) {
-            $foo->bar = $new_value;
-        });
-
-        $service->commit();
-
-        $service->read($foo);
-
-        $I->assertEquals($foo->bar, $new_value);
-
-        $service->commit();
-
-        $service->read($foo);
-
-        $I->assertNull($foo->bar);
-
-        # Remove
-        $service->write(function (Foo $foo) use ($value) {
-            $foo->bar = $value;
-        });
-        $service->commit();
-        $service->read($foo);
-        $I->assertSame($value, $foo->bar);
-
-        $service->remove(Foo::class);
-        $service->read($foo);
-        $I->assertNull($foo->bar);
-
-        $service->commit();
-        $service->read($foo);
-        $I->assertNull($foo->bar);
-
-        # Remove and subsequent write in same request
-        $service->write(function (Baz $baz) {
-           $baz->qux = "nonsense";
-        });
-
-        $service->remove(Baz::class);
-
-        $service->write(function (Baz $baz) use ($value) {
-            $baz->qux = $value;
-        });
-
-        $service->commit();
-
-        $service->read($baz);
-
-        $I->assertSame($value, $baz->qux);
-
-        $service->remove(Baz::class);
-
-        $service->write(function (Baz $baz) use ($new_value) {
-            $baz->qux = $new_value;
-        });
-
-        $service->commit();
-
-        $service->read($baz);
-
-        $I->assertSame($new_value, $baz->qux);
-    }
-}
-
-class Foo
-{
-    public $bar;
-}
-
-class Baz
-{
-    public $qux;
-}
-
-class MockStorage implements SessionStorage
-{
-
     /**
-     * @var string
+     * @var CacheSessionStorage[]
      */
-    private $namespace;
+    private $storages = [];
 
     /**
-     * @var array
+     * @var MockCache
      */
     private $cache;
 
-    public function __construct($namespace)
+    public function _before(UnitTester $I)
     {
-        $this->namespace = $namespace;
-        $this->cache = [];
+        $this->cache = new MockCache();
     }
 
-    public function get($key)
+    public function test(UnitTester $I)
     {
-        return @$this->cache[$key] ?: null;
+        $I->wantToTest("SessionService functionality");
+
+        $service = $this->createSessionService();
+
+        $model_a = new TestSessionModelA();
+        $model_a->foo = "Hello";
+        $model_a->bar = "session";
+
+        $model_b = new TestSessionModelB();
+        $model_b->foo = "Bonjour";
+        $model_b->bar = "Monsieur";
+
+        $service->set($model_a);
+
+        $I->assertEquals($model_a, $service->get(TestSessionModelA::class), "Returns equal object to what was stored");
+        $I->assertNull($service->get(TestSessionModelB::class), "Returns null when nothing stored");
+
+        $service = $this->nextRequest($service);
+
+        $I->assertEquals($model_a, $service->get(TestSessionModelA::class), "Returns equal object to what was stored");
+        $I->assertNull($service->get(TestSessionModelB::class), "Returns null when nothing stored");
+
+        $service->unset(TestSessionModelA::class);
+
+        $I->assertNull($service->get(TestSessionModelA::class), "After calling unset(x), x is not in session");
+
+        $service = $this->nextRequest($service);
+
+        $I->assertNull($service->get(TestSessionModelA::class), "After calling unset(x), x is not in session");
+
+        $service->flash($model_a);
+
+        $I->assertEquals($model_a, $service->get(TestSessionModelA::class), "Flashes can be fetched in same request.");
+
+        $service = $this->nextRequest($service, 301);
+        $service = $this->nextRequest($service, 302);
+        $service = $this->nextRequest($service, 303);
+        $service = $this->nextRequest($service, 500);
+
+        $I->assertEquals($model_a, $service->get(TestSessionModelA::class),
+            "Flash messages are present after a series of redirect or fail responses");
+
+        $service = $this->nextRequest($service);
+
+        $I->assertNull($service->get(TestSessionModelA::class),
+            "Flash messages are removed after the first request returning 200");
+
+        $service->set($model_a);
+        $service->set($model_b);
+
+        $service = $this->nextRequest($service);
+
+        $service->clear();
+
+        $I->assertNull($service->get(TestSessionModelA::class), "No models in storage after clear()");
+        $I->assertNull($service->get(TestSessionModelB::class), "No models in storage after clear()");
+
+        $service->set($model_a);
+        $I->assertEquals($model_a, $service->get(TestSessionModelA::class), "Set models in storage after clear()");
+
+        $service = $this->nextRequest($service);
+
+        $I->assertEquals($model_a, $service->get(TestSessionModelA::class), "Set models in storage after clear()");
+        $I->assertNull($service->get(TestSessionModelB::class), "No models in storage after clear()");
     }
 
-    public function set($key, $value)
+    /**
+     * @inheritdoc
+     */
+    protected function nextRequest(SessionService $service, $response_code = 200)
     {
-        $this->cache[$key] = $value;
+        $response = new Response('php://temp', $response_code);
+
+        $session_id = $service->getSessionID();
+
+        $this->storages[$session_id]->commit($response);
+
+        $new_service = $this->createSessionService($session_id);
+
+        return $new_service;
     }
 
-    public function clear()
+    protected function createSessionService($session_id = null, $session_ttl = 3600)
     {
-        $this->cache = [];
+        $storage = $this->createSessionStorage($session_id, $session_ttl);
+
+        return new SessionService($storage);
     }
 
-    public function remove($key)
+    /**
+     * @param string|null $session_id
+     * @param int         $session_ttl
+     * @param int         $static_time
+     *
+     * @return SessionStorage
+     */
+    protected function createSessionStorage($session_id = null, $session_ttl = 3600, $static_time = 0)
     {
-        unset($this->cache[$key]);
+        $cookies = [CacheSessionStorageMock::COOKIE_KEY => $session_id];
+
+        $request = new ServerRequest([], [], "/", "GET", 'php://input', [], $cookies);
+
+        $storage = new CacheSessionStorageMock($this->cache, $session_ttl);
+
+        $storage->time = $static_time;
+
+        $storage->begin($request);
+
+        $this->storages[$storage->getSessionID()] = $storage;
+
+        return $storage;
+    }
+
+    /**
+     * @param string  $type    The fully qualified class name of the exception to check for.
+     * @param Closure $closure The closure containing the code to test for exceptions.
+     *
+     * @return bool Returns true if the closure given throws an exception of the type givne by the $type argument.
+     * @throws Exception
+     */
+    protected function catchException($type, Closure $closure)
+    {
+        try {
+            $closure();
+        } catch (Exception $e) {
+            if ($e instanceof $type) {
+                return true;
+            } else {
+                throw $e;
+            }
+        }
+
+        return false;
     }
 }

@@ -1,5 +1,5 @@
 <?php
-namespace Kodus\Session\Middlewares;
+namespace Kodus\Session;
 
 use Interop\Http\Middleware\DelegateInterface;
 use Interop\Http\Middleware\ServerMiddlewareInterface;

@@ -2,6 +2,7 @@
 
 namespace Kodus\Session\Tests\Unit;
 
+use Kodus\Session\Exceptions\InvalidTypeException;
 use Kodus\Session\Session;
 use Kodus\Session\Tests\Unit\SessionModels\TestSessionModelA;
 use Kodus\Session\Tests\Unit\SessionModels\TestSessionModelB;
@@ -67,6 +68,14 @@ abstract class SessionTest
 
         $I->assertFalse($session->has(TestSessionModelA::class), "After clear(), no models are stored in session");
         $I->assertFalse($session->has(TestSessionModelB::class), "After clear(), no models are stored in session");
+
+        $exception = false;
+        try {
+            $session->get("Kodus\\An\\Unknown\\ClassName");
+        } catch (InvalidTypeException $e) {
+            $exception = true;
+        }
+        $I->assertTrue($exception, "If get() is called with an unknown class name, an InvalidTypeException is thrown");
     }
 
     abstract protected function getSession(string $session_id): Session;

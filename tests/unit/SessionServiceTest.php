@@ -22,10 +22,11 @@ abstract class SessionServiceTest
 
         $session_service = $this->getSessionService();
 
-        $request = new ServerRequest();
+        $request_1 = new ServerRequest(['REMOTE_ADDR' => "10.0.0.1"]);
+        $request_2 = new ServerRequest(['REMOTE_ADDR' => "10.0.0.2"]);
 
-        $session_data_1 = $session_service->createSession($request);
-        $session_data_2 = $session_service->createSession($request);
+        $session_data_1 = $session_service->createSession($request_1);
+        $session_data_2 = $session_service->createSession($request_2);
 
         $session_id_1 = $session_data_1->getSessionID();
         $session_id_2 = $session_data_2->getSessionID();
@@ -50,8 +51,8 @@ abstract class SessionServiceTest
         $cookies_1 = $this->getCookies($response_1);
         $cookies_2 = $this->getCookies($response_2);
 
-        $next_request_1 = (new ServerRequest())->withCookieParams($cookies_1);
-        $next_request_2 = (new ServerRequest())->withCookieParams($cookies_2);
+        $next_request_1 = (new ServerRequest(['REMOTE_ADDR' => "10.0.0.1"]))->withCookieParams($cookies_1);
+        $next_request_2 = (new ServerRequest(['REMOTE_ADDR' => "10.0.0.2"]))->withCookieParams($cookies_2);
 
         $session_data_1 = $session_service->createSession($next_request_1);
         $session_data_2 = $session_service->createSession($next_request_2);
@@ -64,6 +65,16 @@ abstract class SessionServiceTest
 
         $I->assertEquals($session_model_a_2, $session_data_2->get(TestSessionModelA::class),
             "SessionData contains the saved session model");
+
+        $next_request_1 = (new ServerRequest(['REMOTE_ADDR' => "10.0.0.3"]))->withCookieParams($cookies_1);
+
+        $session_data_1 = $session_service->createSession($next_request_1);
+
+        $I->assertNotEquals($session_id_1, $session_data_1->getSessionID(),
+            "Same cookie from different IP results in a new session");
+
+        $I->assertNotEquals($session_model_a_1, $session_data_1->get(TestSessionModelA::class),
+            "Same cookie from different IP results in a new session");
     }
 
     /**
@@ -79,9 +90,8 @@ abstract class SessionServiceTest
 
         $cookies = [];
 
-        foreach ($cookie_headers as $cookie_string)
-        {
-            $cookie_pair = mb_substr($cookie_string, 0 , mb_strpos($cookie_string, ";"));
+        foreach ($cookie_headers as $cookie_string) {
+            $cookie_pair = mb_substr($cookie_string, 0, mb_strpos($cookie_string, ";"));
 
             $cookie_key = mb_substr($cookie_pair, 0, mb_strpos($cookie_pair, "="));
             $cookie_value = mb_substr($cookie_pair, mb_strpos($cookie_pair, "=") + 1);

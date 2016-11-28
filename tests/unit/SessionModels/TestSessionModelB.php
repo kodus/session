@@ -2,7 +2,7 @@
 
 namespace Kodus\Session\Tests\Unit\SessionModels;
 
-use Kodus\Session\Interfaces\SessionModel;
+use Kodus\Session\SessionModel;
 
 class TestSessionModelB implements SessionModel
 {

@@ -1,12 +1,5 @@
 /.idea
 /vendor
-/composer.lock
 /tests/_output
 /tests/_support/_generated
 /tests/*.suite.yml
-/codeception.yml
-/config/local.config.php
-/webroot/assets/**/*
-/.sql-status.json
-!.gitkeep
-/config/local.config.php

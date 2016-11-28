@@ -1,5 +1,8 @@
 kodus/session
 =============
+
+# TODO!!!!!!!!!! REWRITE COMPLETELY
+
 A simple interface for storing and retrieving session data without the use of PHP's native session handling.
 
 `kodus/session` requires PHP version 7.0 or newer.

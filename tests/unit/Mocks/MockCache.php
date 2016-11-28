@@ -37,14 +37,14 @@ class MockCache implements CacheInterface
         }
     }
 
-    public function exists($key)
+    public function has($key)
     {
         return isset($this->cache[$key]);
     }
 
-    public function get($key)
+    public function get($key, $default = null)
     {
-        return $this->cache[$key] ?? null;
+        return $this->cache[$key] ?? $default;
     }
 
     public function set($key, $value, $ttl = null)

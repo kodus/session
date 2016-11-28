@@ -3,7 +3,6 @@ namespace Kodus\Session;
 
 use Interop\Http\Middleware\DelegateInterface;
 use Interop\Http\Middleware\ServerMiddlewareInterface;
-use Kodus\Session\SessionService;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -12,7 +11,7 @@ class SessionMiddleware implements ServerMiddlewareInterface
     /**
      * @const string
      */
-    const ATTRIBUTE_NAME = "session.instance";
+    const ATTRIBUTE_NAME = "kodus.session";
 
     /**
      * @var SessionService
@@ -37,7 +36,7 @@ class SessionMiddleware implements ServerMiddlewareInterface
     {
         $session = $this->service->createSession($request);
 
-        $request->withAttribute(self::ATTRIBUTE_NAME, $session);
+        $request = $request->withAttribute(self::ATTRIBUTE_NAME, $session);
 
         $response = $delegate->process($request);
 

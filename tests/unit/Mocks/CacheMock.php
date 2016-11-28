@@ -4,7 +4,7 @@ namespace Kodus\Session\Tests\Unit\Mocks;
 
 use Psr\SimpleCache\CacheInterface;
 
-class MockCache implements CacheInterface
+class CacheMock implements CacheInterface
 {
     /**
      * @var array

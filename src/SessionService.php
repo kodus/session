@@ -8,11 +8,6 @@ use Psr\Http\Message\ServerRequestInterface;
 interface SessionService
 {
     /**
-     * @var string session cookie name
-     */
-    const COOKIE_NAME = "kodus.session";
-
-    /**
      * Create a Session for the given Request.
      *
      * @param ServerRequestInterface $request the incoming HTTP Request

@@ -1,6 +1,7 @@
 <?php
 namespace Kodus\Session\Adapters;
 
+use Codeception\Module\Cli;
 use Kodus\Session\Components\ClientIP;
 use Kodus\Session\SessionService;
 use Psr\Http\Message\ResponseInterface;
@@ -28,6 +29,10 @@ class CacheSessionService implements SessionService
      * @var int two weeks in seconds
      */
     const TWO_WEEKS = 1209600;
+    /**
+     * @var string session cookie name
+     */
+    const COOKIE_NAME = "kodus.session";
 
     /**
      * @var CacheInterface
@@ -53,14 +58,14 @@ class CacheSessionService implements SessionService
      * @param CacheInterface $storage PSR-16 cache implementation, for session-data storage
      * @param string         $salt    private salt
      * @param int            $ttl     time to live (in seconds; defaults to two weeks)
+     * @param ClientIP       $client_ip
      */
-    public function __construct(CacheInterface $storage, $salt, $ttl = self::TWO_WEEKS)
+    public function __construct(CacheInterface $storage, $salt, $ttl = self::TWO_WEEKS, ClientIP $client_ip = null)
     {
         $this->storage = $storage;
         $this->salt = $salt;
         $this->ttl = $ttl;
-        // TODO question: Dependency Injection instead or is this okay?!
-        $this->client_ip = new ClientIP();
+        $this->client_ip = $client_ip ?: new ClientIP();
     }
 
     /**
@@ -74,10 +79,11 @@ class CacheSessionService implements SessionService
     {
         $cookies = $request->getCookieParams();
 
-        if (isset($cookies[SessionService::COOKIE_NAME])) {
-            $session_id = $cookies[SessionService::COOKIE_NAME];
+        if (isset($cookies[self::COOKIE_NAME])) {
+            $session_id = $cookies[self::COOKIE_NAME];
 
             if ($this->isValidSessionID($request, $session_id)) {
+
                 $key = self::KEY_PREFIX . $session_id;
 
                 $data = $this->storage->get($key);
@@ -107,7 +113,7 @@ class CacheSessionService implements SessionService
 
         $this->storage->set($key, $session->getData(), $this->ttl);
 
-        $header = sprintf(SessionService::COOKIE_NAME . "=%s; Path=/;", $session_id);
+        $header = sprintf(self::COOKIE_NAME . "=%s; Path=/;", $session_id);
 
         return $response->withAddedHeader(self::SET_COOKIE_HEADER, $header);
     }
@@ -163,7 +169,7 @@ class CacheSessionService implements SessionService
     {
         $user_agent = $request->getHeaderLine(self::USER_AGENT_HEADER);
 
-        $client_ip = $this->client_ip->getIp($request);
+        $client_ip = $this->client_ip->getIP($request);
 
         return substr(
             sha1(

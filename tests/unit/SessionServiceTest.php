@@ -4,6 +4,7 @@ namespace Kodus\Session\Tests\Unit;
 
 use Kodus\Session\SessionService;
 use Kodus\Session\Tests\Unit\SessionModels\TestSessionModelA;
+use Psr\Http\Message\ResponseInterface;
 use UnitTester;
 use Zend\Diactoros\Response;
 use Zend\Diactoros\ServerRequest;
@@ -17,7 +18,7 @@ abstract class SessionServiceTest
 {
     public function basicFunctionality(UnitTester $I)
     {
-        $I->wantToTest("basic functionality");
+        $I->wantToTest("SessionService functionality");
 
         $session_service = $this->getSessionService();
 
@@ -46,17 +47,11 @@ abstract class SessionServiceTest
         $response_1 = $session_service->commitSession($session_data_1, new Response());
         $response_2 = $session_service->commitSession($session_data_2, new Response());
 
-        $cookie_headers_1 = $response_1->getHeader("Set-Cookie");
-        $cookie_headers_2 = $response_2->getHeader("Set-Cookie");
+        $cookies_1 = $this->getCookies($response_1);
+        $cookies_2 = $this->getCookies($response_2);
 
-        $cookie_1 = sprintf("%s=%s; Path=/;", SessionService::COOKIE_NAME, $session_id_1);
-        $cookie_2 = sprintf("%s=%s; Path=/;", SessionService::COOKIE_NAME, $session_id_2);
-
-        $I->assertTrue(in_array($cookie_1, $cookie_headers_1), "Session cookie is set in commitSession");
-        $I->assertTrue(in_array($cookie_2, $cookie_headers_2), "Session cookie is set in commitSession");
-
-        $next_request_1 = (new ServerRequest())->withCookieParams([SessionService::COOKIE_NAME => $session_id_1]);
-        $next_request_2 = (new ServerRequest())->withCookieParams([SessionService::COOKIE_NAME => $session_id_2]);
+        $next_request_1 = (new ServerRequest())->withCookieParams($cookies_1);
+        $next_request_2 = (new ServerRequest())->withCookieParams($cookies_2);
 
         $session_data_1 = $session_service->createSession($next_request_1);
         $session_data_2 = $session_service->createSession($next_request_2);
@@ -71,5 +66,29 @@ abstract class SessionServiceTest
             "SessionData contains the saved session model");
     }
 
+    /**
+     * Get the instance of an implementation of SessionService to test.
+     *
+     * @return SessionService
+     */
     abstract protected function getSessionService(): SessionService;
+
+    private function getCookies(ResponseInterface $response)
+    {
+        $cookie_headers = $response->getHeader("Set-Cookie");
+
+        $cookies = [];
+
+        foreach ($cookie_headers as $cookie_string)
+        {
+            $cookie_pair = mb_substr($cookie_string, 0 , mb_strpos($cookie_string, ";"));
+
+            $cookie_key = mb_substr($cookie_pair, 0, mb_strpos($cookie_pair, "="));
+            $cookie_value = mb_substr($cookie_pair, mb_strpos($cookie_pair, "=") + 1);
+
+            $cookies[$cookie_key] = $cookie_value;
+        }
+
+        return $cookies;
+    }
 }

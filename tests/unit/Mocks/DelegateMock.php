@@ -27,11 +27,9 @@ class DelegateMock implements DelegateInterface
      */
     public $next;
 
-    public function __construct()
+    public function __construct(Closure $next)
     {
-        $this->next = function () {
-            //Empty function
-        };
+        $this->next = $next ?? function () {};
     }
 
     /**
@@ -46,10 +44,5 @@ class DelegateMock implements DelegateInterface
         $response = call_user_func_array($this->next, [$request]);
 
         return ($response instanceof ResponseInterface) ? $response : new Response();
-    }
-
-    public function setNext(Closure $next)
-    {
-        $this->next = $next;
     }
 }

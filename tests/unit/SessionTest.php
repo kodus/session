@@ -16,7 +16,7 @@ abstract class SessionTest
 {
     public function basicUsage(UnitTester $I)
     {
-        $I->wantToTest("basic SessionData functionality");
+        $I->wantToTest("Session functionality");
 
         $session_id = "hi-im-a-session-id";
 

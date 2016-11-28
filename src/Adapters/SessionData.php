@@ -22,11 +22,6 @@ class SessionData implements Session
     private $data = [];
 
     /**
-     * @var SessionModel[] key/value map of unpacked session model objects
-     */
-    private $objects = [];
-
-    /**
      * @param string $session_id
      * @param array  $data
      */
@@ -58,26 +53,16 @@ class SessionData implements Session
             throw new InvalidTypeException("The class {$type} does not exists");
         }
 
-        if (isset($this->objects[$type])) {
-            return clone $this->objects[$type];
-        }
-
         if (isset($this->data[$type])) {
-            $object = unserialize($this->data[$type]);
-
-            $this->objects[$type] = $object instanceof $type ? $object : new $type;
-        } else {
-            $this->objects[$type] = new $type;
+            return unserialize($this->data[$type]);
         }
 
-        return clone $this->objects[$type];
+        return new $type;
     }
 
     public function put(SessionModel $object)
     {
         $type = get_class($object);
-
-        $this->objects[$type] = $object;
 
         $this->data[$type] = serialize($object);
     }
@@ -90,12 +75,10 @@ class SessionData implements Session
     public function remove(string $type)
     {
         unset($this->data[$type]);
-        unset($this->objects[$type]);
     }
 
     public function clear()
     {
         $this->data = [];
-        $this->objects = [];
     }
 }

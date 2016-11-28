@@ -15,27 +15,18 @@ class ClientIP
     /**
      * @var array The trusted headers
      */
-    private $headers = [
-        'Forwarded',
-        'Forwarded-For',
-        'Client-Ip',
-        'X-Forwarded',
-        'X-Forwarded-For',
-        'X-Cluster-Client-Ip',
-    ];
+    private $headers = [];
 
-    /**
-     * Configure the trusted headers.
-     *
-     * @param array $headers
-     *
-     * @return self
-     */
-    public function headers(array $headers)
+    public function __construct(array $headers = null)
     {
-        $this->headers = $headers;
-
-        return $this;
+        $this->headers = $headers ?: [
+            'Forwarded',
+            'Forwarded-For',
+            'Client-Ip',
+            'X-Forwarded',
+            'X-Forwarded-For',
+            'X-Cluster-Client-Ip',
+        ];
     }
 
     /**
@@ -45,11 +36,11 @@ class ClientIP
      *
      * @return string|null
      */
-    public function getIp(ServerRequestInterface $request)
+    public function getIP(ServerRequestInterface $request)
     {
         $server = $request->getServerParams();
 
-        if (!empty($server['REMOTE_ADDR']) && self::isValid($server['REMOTE_ADDR'])) {
+        if (! empty($server['REMOTE_ADDR']) && self::isValid($server['REMOTE_ADDR'])) {
             return $server['REMOTE_ADDR'];
         }
 

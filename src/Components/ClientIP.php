@@ -3,11 +3,11 @@ namespace Kodus\Session\Components;
 
 use Psr\Http\Message\ServerRequestInterface;
 
-
 /**
  * A helper class for extracting the client IP from a ServerRequestInterface object.
  *
- * This is adapted from the middlewares/clientIp middleware
+ * This is adapted from the middlewares/client-ip middleware
+ *
  * @see https://github.com/middlewares/client-ip
  */
 class ClientIP

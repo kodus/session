@@ -15,11 +15,6 @@ class CacheSessionService implements SessionService
     const KEY_PREFIX = "kodus.session#";
 
     /**
-     * @var string session cookie name
-     */
-    const COOKIE_NAME = "kodus.session";
-
-    /**
      * @var string
      */
     const SET_COOKIE_HEADER = "Set-Cookie";
@@ -50,6 +45,11 @@ class CacheSessionService implements SessionService
     private $salt;
 
     /**
+     * @var ClientIP
+     */
+    private $client_ip;
+
+    /**
      * @param CacheInterface $storage PSR-16 cache implementation, for session-data storage
      * @param string         $salt    private salt
      * @param int            $ttl     time to live (in seconds; defaults to two weeks)
@@ -59,6 +59,8 @@ class CacheSessionService implements SessionService
         $this->storage = $storage;
         $this->salt = $salt;
         $this->ttl = $ttl;
+        // TODO question: Dependency Injection instead or is this okay?!
+        $this->client_ip = new ClientIP();
     }
 
     /**
@@ -72,8 +74,8 @@ class CacheSessionService implements SessionService
     {
         $cookies = $request->getCookieParams();
 
-        if (isset($cookies[self::COOKIE_NAME])) {
-            $session_id = $cookies[self::COOKIE_NAME];
+        if (isset($cookies[SessionService::COOKIE_NAME])) {
+            $session_id = $cookies[SessionService::COOKIE_NAME];
 
             if ($this->isValidSessionID($request, $session_id)) {
                 $key = self::KEY_PREFIX . $session_id;
@@ -105,7 +107,7 @@ class CacheSessionService implements SessionService
 
         $this->storage->set($key, $session->getData(), $this->ttl);
 
-        $header = sprintf(self::COOKIE_NAME . "=%s; Path=/;", $session_id);
+        $header = sprintf(SessionService::COOKIE_NAME . "=%s; Path=/;", $session_id);
 
         return $response->withAddedHeader(self::SET_COOKIE_HEADER, $header);
     }
@@ -161,8 +163,7 @@ class CacheSessionService implements SessionService
     {
         $user_agent = $request->getHeaderLine(self::USER_AGENT_HEADER);
 
-        // TODO question: Dependency Injection instead or is this okay?!
-        $client_ip = (new ClientIP())->getIp($request);
+        $client_ip = $this->client_ip->getIp($request);
 
         return substr(
             sha1(

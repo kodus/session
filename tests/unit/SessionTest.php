@@ -7,6 +7,11 @@ use Kodus\Session\Tests\Unit\SessionModels\TestSessionModelA;
 use Kodus\Session\Tests\Unit\SessionModels\TestSessionModelB;
 use UnitTester;
 
+/**
+ * Generic test for implementations of Kodus\Session\Session.
+ *
+ * Test implementations by creating a codeception cest class that extends this.
+ */
 abstract class SessionTest
 {
     public function basicUsage(UnitTester $I)

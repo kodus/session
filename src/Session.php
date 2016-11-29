@@ -3,6 +3,11 @@ namespace Kodus\Session;
 
 use Kodus\Session\Exceptions\InvalidTypeException;
 
+/**
+ * This interface defines the public portion of the SessionData model.
+ *
+ * Consumers should type-hint against this as a dependency.
+ */
 interface Session
 {
     /**

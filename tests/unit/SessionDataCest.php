@@ -4,17 +4,23 @@ namespace Kodus\Session\Tests\Unit;
 
 use Kodus\Session\Exceptions\InvalidTypeException;
 use Kodus\Session\Session;
+use Kodus\Session\SessionData;
 use Kodus\Session\Tests\Unit\SessionModels\TestSessionModelA;
 use Kodus\Session\Tests\Unit\SessionModels\TestSessionModelB;
 use UnitTester;
 
-/**
- * Generic test for implementations of Kodus\Session\Session.
- *
- * Test implementations by creating a codeception cest class that extends this.
- */
-abstract class SessionTest
+class SessionDataCest
 {
+    /**
+     * @var array
+     */
+    private $data = [];
+
+    public function _before()
+    {
+        $this->data = [];
+    }
+
     public function basicUsage(UnitTester $I)
     {
         $I->wantToTest("Session functionality");
@@ -78,5 +84,8 @@ abstract class SessionTest
         $I->assertTrue($exception, "If get() is called with an unknown class name, an InvalidTypeException is thrown");
     }
 
-    abstract protected function getSession(string $session_id): Session;
+    private function getSession(string $session_id): SessionData
+    {
+        return new SessionData($session_id, $this->data);
+    }
 }

@@ -11,16 +11,40 @@ class CacheMock implements CacheInterface
      */
     private $cache = [];
 
+    /**
+     * @var int[]
+     */
+    private $expiration_times = [];
+
+    /**
+     * @var int
+     */
+    public $time = 0;
+
+    public function __construct(int $time = 0)
+    {
+        $this->time = $time;
+    }
+
     public function delete($key)
     {
+        unset($this->expiration_times[$key]);
         unset($this->cache[$key]);
     }
 
     public function getMultiple($keys)
     {
-        return array_filter($this->cache, function ($key) use ($keys) {
-            return in_array($key, $keys);
-        });
+        $result = [];
+
+        foreach ($this->cache as $key => $value) {
+            if (in_array($key, $keys) && $this->expiration_times[$key] >= $this->time) {
+                $result[$key] = $value;
+            } else {
+                $this->delete($key); //Clean up expired
+            }
+        }
+
+        return $result;
     }
 
     public function setMultiple($items, $ttl = null)
@@ -44,16 +68,26 @@ class CacheMock implements CacheInterface
 
     public function get($key, $default = null)
     {
-        return $this->cache[$key] ?? $default;
+        if ($this->isExpired($key)) {
+            $this->delete($key);
+        }
+
+        return isset($this->cache[$key]) ? $this->cache[$key] : $default;
     }
 
     public function set($key, $value, $ttl = null)
     {
-        $this->cache[$key] = $value; //ignore ttl for mock
+        $this->cache[$key] = $value;
+        $this->expiration_times[$key] = $this->time + $ttl;
     }
 
     public function clear()
     {
         $this->cache = [];
+        $this->expiration_times = [];
+    }
+
+    private function isExpired($key) {
+        return (is_int($this->expiration_times[$key]) && $this->expiration_times[$key] < $this->time);
     }
 }

@@ -84,7 +84,7 @@ abstract class SessionServiceTest
      */
     abstract protected function getSessionService(): SessionService;
 
-    private function getCookies(ResponseInterface $response)
+    protected function getCookies(ResponseInterface $response)
     {
         $cookie_headers = $response->getHeader("Set-Cookie");
 

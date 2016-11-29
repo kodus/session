@@ -1,7 +1,7 @@
 <?php
 namespace Kodus\Session\Adapters;
 
-use Kodus\Session\Components\ClientIP;
+use Kodus\Session\Components\UUID;
 use Kodus\Session\SessionData;
 use Kodus\Session\SessionService;
 use Psr\Http\Message\ResponseInterface;
@@ -10,10 +10,6 @@ use Psr\SimpleCache\CacheInterface;
 
 class CacheSessionService implements SessionService
 {
-    /**
-     * @var string storage key prefix
-     */
-    const KEY_PREFIX = "kodus.session#";
 
     /**
      * @var string
@@ -43,29 +39,21 @@ class CacheSessionService implements SessionService
      * @var int time to live (in seconds)
      */
     protected $ttl;
+    /**
+     * @var bool
+     */
+    private $secure_only;
 
     /**
-     * @var string
+     * @param CacheInterface $storage     PSR-16 cache implementation, for session-data storage
+     * @param int            $ttl         time to live (in seconds; defaults to two weeks)
+     * @param bool           $secure_only If true, sessions are only recognized over HTTPS
      */
-    private $salt;
-
-    /**
-     * @var ClientIP
-     */
-    private $client_ip;
-
-    /**
-     * @param CacheInterface $storage PSR-16 cache implementation, for session-data storage
-     * @param string         $salt    private salt
-     * @param int            $ttl     time to live (in seconds; defaults to two weeks)
-     * @param ClientIP       $client_ip
-     */
-    public function __construct(CacheInterface $storage, $salt, $ttl = self::TWO_WEEKS, ClientIP $client_ip = null)
+    public function __construct(CacheInterface $storage, int $ttl = self::TWO_WEEKS, bool $secure_only = true)
     {
         $this->storage = $storage;
-        $this->salt = $salt;
         $this->ttl = $ttl;
-        $this->client_ip = $client_ip ?: new ClientIP();
+        $this->secure_only = $secure_only;
     }
 
     /**
@@ -82,19 +70,14 @@ class CacheSessionService implements SessionService
         if (isset($cookies[self::COOKIE_NAME])) {
             $session_id = $cookies[self::COOKIE_NAME];
 
-            if ($this->isValidSessionID($request, $session_id)) {
+            $data = $this->storage->get($session_id);
 
-                $key = self::KEY_PREFIX . $session_id;
-
-                $data = $this->storage->get($key);
-
-                if (is_array($data)) {
-                    return new SessionData($session_id, $data);
-                }
+            if (is_array($data)) {
+                return new SessionData($session_id, $data);
             }
         }
 
-        return new SessionData($this->createSessionID($request), []);
+        return new SessionData(UUID::create(), []);
     }
 
     /**
@@ -109,78 +92,11 @@ class CacheSessionService implements SessionService
     {
         $session_id = $session->getSessionID();
 
-        $key = self::KEY_PREFIX . $session_id;
+        $this->storage->set($session_id, $session->getData(), $this->ttl);
 
-        $this->storage->set($key, $session->getData(), $this->ttl);
-
-        $header = sprintf(self::COOKIE_NAME . "=%s; Path=/;", $session_id);
+        $secure = $this->secure_only ? " Secure;" : "";
+        $header = sprintf(self::COOKIE_NAME . "=%s; Path=/; HTTPOnly;%s", $session_id, $secure);
 
         return $response->withAddedHeader(self::SET_COOKIE_HEADER, $header);
-    }
-
-    /**
-     * Create a new, valid Session ID for the given Request.
-     *
-     * @param ServerRequestInterface $request
-     *
-     * @return string valid, 40-byte Session ID
-     */
-    protected function createSessionID(ServerRequestInterface $request)
-    {
-        $id_part = substr(sha1(microtime(true) . rand(0, 9999999)), 0, 20);
-
-        $checksum_part = $this->calculateChecksum($request, $id_part);
-
-        $session_id = $id_part . $checksum_part;
-
-        return $session_id;
-    }
-
-    /**
-     * Internally validate a given Session ID against a given Request.
-     *
-     * @param ServerRequestInterface $request
-     * @param string                 $session_id 40-byte Session ID
-     *
-     * @return bool TRUE, if the given Session ID is valid
-     */
-    protected function isValidSessionID(ServerRequestInterface $request, $session_id)
-    {
-        if (!strlen($session_id) === 40) {
-            return false;
-        }
-
-        $id_part = substr($session_id, 0, 20);
-
-        $checksum_part = substr($session_id, 20, 20);
-
-        return $checksum_part === $this->calculateChecksum($request, $id_part);
-    }
-
-    /**
-     * Internally calculate the second half (checksum part) of a valid 40-byte Session ID.
-     *
-     * @param ServerRequestInterface $request
-     * @param string                 $id_part 20 bytes (ID part Session ID)
-     *
-     * @return string 20 bytes (checksum part of Session ID)
-     */
-    private function calculateChecksum(ServerRequestInterface $request, $id_part)
-    {
-        $user_agent = $request->getHeaderLine(self::USER_AGENT_HEADER);
-
-        $client_ip = $this->client_ip->getIP($request);
-
-        return substr(
-            sha1(
-                $this->salt
-                . $user_agent
-                . $client_ip
-                . $id_part
-                . "4ev2KH4kcUwJLX9f94csRuf2tkWvnMqV5mCVnFGy3dgYCtzgwteTJB8RYyfCsAVUmda99jZpPpwgqmVFnYqXFEjepzAnRMRQUkLj"
-            ),
-            0,
-            20
-        );
     }
 }

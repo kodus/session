@@ -6,7 +6,6 @@ use Kodus\Session\Adapters\CacheSessionService;
 use Kodus\Session\Session;
 use Kodus\Session\SessionMiddleware;
 use Kodus\Session\Tests\Unit\Mocks\CacheMock;
-use Kodus\Session\Tests\Unit\Mocks\ClientIPMock;
 use Kodus\Session\Tests\Unit\Mocks\DelegateMock;
 use Kodus\Session\Tests\Unit\SessionModels\TestSessionModelA;
 use Psr\Http\Message\ResponseInterface;
@@ -21,14 +20,12 @@ class SessionMiddlewareCest
     {
         $I->wantToTest("SessionMiddleware");
 
-        $client_ip = new ClientIPMock();
-
         $cache = new CacheMock();
 
         $model = new TestSessionModelA();
         $model->foo = "hello foo world";
 
-        $service = new CacheSessionService($cache, "My salty string", CacheSessionService::TWO_WEEKS, $client_ip);
+        $service = new CacheSessionService($cache, CacheSessionService::TWO_WEEKS, false);
 
         $middleware = new SessionMiddleware($service);
 

@@ -18,7 +18,7 @@ class CacheSessionServiceCest extends SessionServiceTest
     {
         $cache = new CacheMock(0);
 
-        $service = new CacheSessionService($cache, "a salty string", 3600); //Session lasts 3600 sec. = 1 hour
+        $service = new CacheSessionService($cache, 3600, false); //Session lasts 3600 sec. = 1 hour
 
         $session = $service->createSession(new ServerRequest());
 
@@ -68,6 +68,6 @@ class CacheSessionServiceCest extends SessionServiceTest
 
     protected function getSessionService(): SessionService
     {
-        return new CacheSessionService(new CacheMock(0), "a salty string");
+        return new CacheSessionService(new CacheMock(0), CacheSessionService::TWO_WEEKS, false);
     }
 }

@@ -1,8 +1,8 @@
 <?php
 namespace Kodus\Session\Adapters;
 
-use Codeception\Module\Cli;
 use Kodus\Session\Components\ClientIP;
+use Kodus\Session\SessionData;
 use Kodus\Session\SessionService;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;

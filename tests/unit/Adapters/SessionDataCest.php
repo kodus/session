@@ -3,7 +3,7 @@
 namespace Kodus\Session\Tests\Unit\Adapters;
 
 
-use Kodus\Session\Adapters\SessionData;
+use Kodus\Session\SessionData;
 use Kodus\Session\Session;
 use Kodus\Session\Tests\Unit\SessionTest;
 

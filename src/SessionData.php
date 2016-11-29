@@ -1,10 +1,8 @@
 <?php
 
-namespace Kodus\Session\Adapters;
+namespace Kodus\Session;
 
 use Kodus\Session\Exceptions\InvalidTypeException;
-use Kodus\Session\Session;
-use Kodus\Session\SessionModel;
 
 /**
  * This model represents a collection of session-data.

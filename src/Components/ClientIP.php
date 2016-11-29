@@ -45,7 +45,7 @@ class ClientIP
         }
 
         foreach ($this->headers as $name) {
-            if ($request->hasHeader($name) && ($ip = self::getHeaderIp($request->getHeaderLine($name))) !== null) {
+            if ($request->hasHeader($name) && ($ip = self::getHeaderIP($request->getHeaderLine($name))) !== null) {
                 return $ip;
             }
         }
@@ -60,7 +60,7 @@ class ClientIP
      *
      * @return string|null
      */
-    private static function getHeaderIp($header)
+    private static function getHeaderIP($header)
     {
         foreach (array_map('trim', explode(',', $header)) as $ip) {
             if (self::isValid($ip)) {

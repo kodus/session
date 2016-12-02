@@ -4,6 +4,7 @@ namespace Kodus\Session\Tests\Unit\Mocks;
 
 use Psr\SimpleCache\CacheInterface;
 
+//TODO replace with kodus\mock-cache
 class CacheMock implements CacheInterface
 {
     /**

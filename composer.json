@@ -14,7 +14,8 @@
         "php": "^7.0",
         "psr/http-message": "^1.0",
         "http-interop/http-middleware": "^0.2.0",
-        "psr/simple-cache": "^0.1"
+        "psr/simple-cache": "^0.2",
+        "middlewares/client-ip": "^0.1.0"
     },
     "require-dev": {
         "codeception/codeception": "^2",

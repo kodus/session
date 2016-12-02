@@ -1,6 +1,6 @@
 <?php
 
-namespace Kodus\Session\Component;
+namespace Kodus\Session\Components;
 
 use RuntimeException;
 

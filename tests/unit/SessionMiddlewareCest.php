@@ -2,49 +2,83 @@
 
 namespace Kodus\Session\Tests\Unit;
 
-
+use Kodus\Session\Adapters\CacheSessionService;
+use Kodus\Session\Session;
 use Kodus\Session\SessionMiddleware;
-use Kodus\Session\Tests\Unit\Mocks\CacheSessionStorageMock;
+use Kodus\Session\Tests\Unit\Mocks\CacheMock;
 use Kodus\Session\Tests\Unit\Mocks\DelegateMock;
-use Kodus\Session\Tests\Unit\Mocks\MockCache;
+use Kodus\Session\Tests\Unit\SessionModels\TestSessionModelA;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
 use UnitTester;
+use Zend\Diactoros\Response;
 use Zend\Diactoros\ServerRequest;
 
 class SessionMiddlewareCest
 {
-    public function test(UnitTester $I)
+    public function basicFunctionality(UnitTester $I)
     {
-        $I->wantToTest("SessionMiddleware functionality");
+        $I->wantToTest("SessionMiddleware");
 
-        $cache = new MockCache();
-        $storage = new CacheSessionStorageMock($cache, 3600);
-        $delegate = new DelegateMock();
-        $middleware = new SessionMiddleware($storage); // Subject under test
+        $cache = new CacheMock();
 
-        $key = "hello key";
-        $value = "hello middleware";
+        $model = new TestSessionModelA();
+        $model->foo = "hello foo world";
 
-        $I->assertNull($storage->get($key), "Before the request has been run, nothing is in cache");
+        $service = new CacheSessionService($cache, CacheSessionService::TWO_WEEKS, false);
 
-        $delegate->setNext(function () use ($storage, $key, $value) {
-            $storage->set($key, $value);
+        $middleware = new SessionMiddleware($service);
+
+
+        # First request
+        $delegate = new DelegateMock(function (ServerRequestInterface $request) use ($I, $model) {
+
+            /** @var Session $session */
+            $session = $request->getAttribute(SessionMiddleware::ATTRIBUTE_NAME);
+
+            $I->assertInstanceOf(Session::class, $session,
+                "SessionMiddleware adds an instance of Session to server request attributes");
+
+            $session->put($model);
+
+            return new Response();
         });
 
-        $response = $middleware->process(new ServerRequest(), $delegate);
+        $request_1 = new ServerRequest();
 
-        $value = $storage->get($key);
+        $response = $middleware->process($request_1, $delegate);
 
-        $I->assertEquals("hello middleware", $value, "Checking the value of TestSessionModelA was stored correctly");
+        $cookies = $this->getCookies($response);
 
-        $I->assertTrue($response->hasHeader("set-cookie"));
+        $delegate->next = function (ServerRequestInterface $request) use ($I, $model) {
+            /** @var Session $session */
+            $session = $request->getAttribute(SessionMiddleware::ATTRIBUTE_NAME);
 
-        $headers = $response->getHeader("set-cookie");
+            $I->assertEquals($model, $session->get(TestSessionModelA::class), "Session models are available in next request with the cookie returned in the previous");
 
-        $I->assertEquals(1, count($headers), "Only one cookie header should be set from the session");
-        $I->assertNotEmpty($storage->getSessionID(), "Should have a non-empty session id");
+            return new Response();
+        };
 
-        $expected_cookie = CacheSessionStorageMock::COOKIE_KEY . "=" . $storage->getSessionID() . "; Max-Age=3600; Expires=3600; Path=/;";
+        $request_2 = (new ServerRequest())->withCookieParams($cookies);
 
-        $I->assertSame($expected_cookie, $headers[0], "Cookie should match expected values and session ID");
+        $middleware->process($request_2, $delegate);
+    }
+
+    private function getCookies(ResponseInterface $response)
+    {
+        $cookie_headers = $response->getHeader("Set-Cookie");
+
+        $cookies = [];
+
+        foreach ($cookie_headers as $cookie_string) {
+            $cookie_pair = mb_substr($cookie_string, 0, mb_strpos($cookie_string, ";"));
+
+            $cookie_key = mb_substr($cookie_pair, 0, mb_strpos($cookie_pair, "="));
+            $cookie_value = mb_substr($cookie_pair, mb_strpos($cookie_pair, "=") + 1);
+
+            $cookies[$cookie_key] = $cookie_value;
+        }
+
+        return $cookies;
     }
 }

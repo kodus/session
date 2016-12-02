@@ -38,11 +38,11 @@ interface Session
     /**
      * Removes the object of type $type, if it exists in session.
      *
-     * @param string $type fully qualified class name (e.g. MyModel::class)
+     * @param string|SessionModel $model instance of SessionModel or fully qualified class name (e.g. MyModel::class)
      *
      * @return void
      */
-    public function remove(string $type);
+    public function remove($model);
 
     /**
      * Clears all objects form the session

@@ -70,9 +70,21 @@ class SessionData implements Session
         return (isset($this->data[$type]) && class_exists($type));
     }
 
-    public function remove(string $type)
+    public function remove($model)
     {
-        unset($this->data[$type]);
+        if (is_string($model)) {
+            unset($this->data[$model]);
+
+            return;
+        }
+
+        if ($model instanceof SessionModel) {
+            unset($this->data[get_class($model)]);
+
+            return;
+        }
+
+        throw new InvalidTypeException("Session::remove must be called with a string or an instance of " . SessionModel::class);
     }
 
     public function clear()

@@ -55,17 +55,20 @@ class SessionDataCest
         $I->assertEquals($session_model_a, $session->get(TestSessionModelA::class),
             "put() method updates the session model in the session");
 
-        $session->remove(TestSessionModelA::class);
+        $session_model_b = new TestSessionModelB();
+        $session_model_b->foo = "Yo, wassup";
+        $session_model_b->bar = "What's the happy-haps!?";
+
+        $session->put($session_model_b);
+
+        $session->remove($session_model_b); //Remove object
+        $session->remove(TestSessionModelA::class); //remove by type
 
         $I->assertFalse($session->has(TestSessionModelA::class),
             "After remove(), has() returns false");
 
         $I->assertEquals(new TestSessionModelA(), $session->get(TestSessionModelA::class),
             "After remove(), get() returns default model");
-
-        $session_model_b = new TestSessionModelB();
-        $session_model_b->foo = "Yo, wassup";
-        $session_model_b->bar = "What's the happy-haps!?";
 
         $session->put($session_model_a);
         $session->put($session_model_b);

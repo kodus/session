@@ -3,6 +3,7 @@
 namespace Kodus\Session;
 
 use Kodus\Session\Exceptions\InvalidTypeException;
+use ReflectionClass;
 
 /**
  * This model represents a collection of session-data.
@@ -15,7 +16,7 @@ class SessionData implements Session
     private $session_id;
 
     /**
-     * @var mixed[] map where fully-qualified class-name => serialized data
+     * @var mixed[] map where fully-qualified class-name => [checksum, serialized data]
      */
     private $data = [];
 
@@ -50,12 +51,12 @@ class SessionData implements Session
         $data = $this->data;
 
         foreach ($this->objects as $object) {
-            $key = get_class($object);
+            $type = get_class($object);
 
             if ($object->isEmpty()) {
-                unset($data[$key]);
+                unset($data[$type]);
             } else {
-                $data[$key] = serialize($object);
+                $data[$type] = [$this->checksum($type), serialize($object)];
             }
         }
 
@@ -69,11 +70,39 @@ class SessionData implements Session
         }
 
         if (! isset($this->objects[$type])) {
-            $this->objects[$type] = isset($this->data[$type])
-                ? unserialize($this->data[$type])
-                : new $type;
+            if (isset($this->data[$type])) {
+                list($checksum, $serialized) = $this->data[$type];
+
+                $this->objects[$type] = $checksum === $this->checksum($type)
+                    ? unserialize($serialized)
+                    : new $type; // checksum invalid (session model implementation has changed)
+            } else {
+                $this->objects[$type] = new $type;
+            }
         }
 
         return $this->objects[$type];
+    }
+
+    /**
+     * Internally checksum a class implementation.
+     *
+     * Any change to the class source-file will cause invalidation of the session-model,
+     *
+     * @param string $type fully-qualified class-name
+     *
+     * @return string MD5 checksum
+     */
+    protected function checksum($type)
+    {
+        static $checksum = [];
+
+        if (!isset($checksum[$type])) {
+            $reflection = new ReflectionClass($type);
+
+            $checksum[$type] = md5_file($reflection->getFileName());
+        }
+
+        return $checksum[$type];
     }
 }

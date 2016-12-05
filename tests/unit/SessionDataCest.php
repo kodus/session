@@ -2,8 +2,6 @@
 
 namespace Kodus\Session\Tests\Unit;
 
-use Kodus\Session\Exceptions\InvalidTypeException;
-use Kodus\Session\Session;
 use Kodus\Session\SessionData;
 use Kodus\Session\Tests\Unit\SessionModels\TestSessionModelA;
 use Kodus\Session\Tests\Unit\SessionModels\TestSessionModelB;
@@ -11,84 +9,40 @@ use UnitTester;
 
 class SessionDataCest
 {
-    /**
-     * @var array
-     */
-    private $data = [];
+    const SESSION_ID = "abc123";
 
-    public function _before()
+    const FOO_VALUE = "hello!";
+
+    public function manageSessionData(UnitTester $I)
     {
-        $this->data = [];
-    }
+        $session = new SessionData(self::SESSION_ID, []);
 
-    public function basicUsage(UnitTester $I)
-    {
-        $I->wantToTest("Session functionality");
+        $I->assertSame(self::SESSION_ID, $session->getSessionID());
 
-        $session_id = "hi-im-a-session-id";
+        /**
+         * @var TestSessionModelA $model
+         */
 
-        $session = $this->getSession($session_id);
+        $model = $session->get(TestSessionModelA::class);
 
-        $I->assertFalse($session->has(TestSessionModelA::class),
-            "has() method returns false for type not stored in session data");
+        $session->get(TestSessionModelB::class); // activate the object in session (but we leave this one empty)
 
-        /** @var TestSessionModelA $session_model_a */
-        $session_model_a = $session->get(TestSessionModelA::class);
+        $I->assertInstanceOf(TestSessionModelA::class, $model, "it creates a new model instance");
 
-        $I->assertInstanceOf(TestSessionModelA::class, $session_model_a,
-            "get() method will construct an empty session model, if none is found in the data");
+        $model->foo = self::FOO_VALUE;
 
-        $I->assertEquals(new TestSessionModelA(), $session_model_a,
-            "automatically constructed session model should be empty");
+        $I->assertSame($model, $session->get(TestSessionModelA::class), "it returns the same instance every time");
 
-        $session_model_a->foo = "hello";
-        $session_model_a->bar = "world";
+        $data = $session->getData();
 
-        $I->assertNotEquals($session_model_a, $session->get(TestSessionModelA::class),
-            "Session models aren't updated in the session until put() is called");
+        $I->assertArrayHasKey(TestSessionModelA::class, $data, "it stores the non-empty session model");
 
-        $session->put($session_model_a);
+        $I->assertArrayNotHasKey(TestSessionModelB::class, $data, "it discards the empty session model");
 
-        $I->assertTrue($session->has(TestSessionModelA::class),
-            "has() method returns true for type stored in session data");
+        $session = new SessionData(self::SESSION_ID, $data);
 
-        $I->assertEquals($session_model_a, $session->get(TestSessionModelA::class),
-            "put() method updates the session model in the session");
+        $I->assertEquals($model, $session->get(TestSessionModelA::class), "it restores the model instance from data");
 
-        $session_model_b = new TestSessionModelB();
-        $session_model_b->foo = "Yo, wassup";
-        $session_model_b->bar = "What's the happy-haps!?";
-
-        $session->put($session_model_b);
-
-        $session->remove($session_model_b); //Remove object
-        $session->remove(TestSessionModelA::class); //remove by type
-
-        $I->assertFalse($session->has(TestSessionModelA::class),
-            "After remove(), has() returns false");
-
-        $I->assertEquals(new TestSessionModelA(), $session->get(TestSessionModelA::class),
-            "After remove(), get() returns default model");
-
-        $session->put($session_model_a);
-        $session->put($session_model_b);
-
-        $session->clear();
-
-        $I->assertFalse($session->has(TestSessionModelA::class), "After clear(), no models are stored in session");
-        $I->assertFalse($session->has(TestSessionModelB::class), "After clear(), no models are stored in session");
-
-        $exception = false;
-        try {
-            $session->get("Kodus\\An\\Unknown\\ClassName");
-        } catch (InvalidTypeException $e) {
-            $exception = true;
-        }
-        $I->assertTrue($exception, "If get() is called with an unknown class name, an InvalidTypeException is thrown");
-    }
-
-    private function getSession(string $session_id): SessionData
-    {
-        return new SessionData($session_id, $this->data);
+        $I->assertSame($model->foo, $session->get(TestSessionModelA::class)->foo, "it preserves the model state");
     }
 }

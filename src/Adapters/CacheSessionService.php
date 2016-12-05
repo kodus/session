@@ -10,7 +10,6 @@ use Psr\SimpleCache\CacheInterface;
 
 class CacheSessionService implements SessionService
 {
-
     /**
      * @var string
      */
@@ -25,6 +24,7 @@ class CacheSessionService implements SessionService
      * @var int two weeks in seconds
      */
     const TWO_WEEKS = 1209600;
+
     /**
      * @var string session cookie name
      */
@@ -39,6 +39,7 @@ class CacheSessionService implements SessionService
      * @var int time to live (in seconds)
      */
     protected $ttl;
+
     /**
      * @var bool
      */

@@ -16,22 +16,23 @@ use Zend\Diactoros\ServerRequest;
 
 class SessionMiddlewareCest
 {
+    const FOO_VALUE = "Hello World";
+
     public function basicFunctionality(UnitTester $I)
     {
         $I->wantToTest("SessionMiddleware");
 
         $cache = new CacheMock();
 
-        $model = new TestSessionModelA();
-        $model->foo = "hello foo world";
-
         $service = new CacheSessionService($cache, CacheSessionService::TWO_WEEKS, false);
 
         $middleware = new SessionMiddleware($service);
 
+        $model = null;
 
-        # First request
-        $delegate = new DelegateMock(function (ServerRequestInterface $request) use ($I, $model) {
+        // During the first request, we generate a session model:
+
+        $delegate = new DelegateMock(function (ServerRequestInterface $request) use ($I, &$model) {
 
             /** @var Session $session */
             $session = $request->getAttribute(SessionMiddleware::ATTRIBUTE_NAME);
@@ -39,7 +40,10 @@ class SessionMiddlewareCest
             $I->assertInstanceOf(Session::class, $session,
                 "SessionMiddleware adds an instance of Session to server request attributes");
 
-            $session->put($model);
+            /** @var TestSessionModelA $model */
+            $model = $session->get(TestSessionModelA::class);
+
+            $model->foo = self::FOO_VALUE;
 
             return new Response();
         });
@@ -47,6 +51,8 @@ class SessionMiddlewareCest
         $request_1 = new ServerRequest();
 
         $response = $middleware->process($request_1, $delegate);
+
+        // During the second request, we obtain the session model created during the first request:
 
         $cookies = $this->getCookies($response);
 

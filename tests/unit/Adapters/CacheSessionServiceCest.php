@@ -22,14 +22,11 @@ class CacheSessionServiceCest extends SessionServiceTest
 
         $session = $service->createSession(new ServerRequest());
 
-        $model_1 = new TestSessionModelA();
+        $model_1 = $session->get(TestSessionModelA::class);
         $model_1->foo = "hello life time test";
 
-        $model_2 = new TestSessionModelB();
+        $model_2 = $session->get(TestSessionModelB::class);
         $model_2->foo = "hello again";
-
-        $session->put($model_1);
-        $session->put($model_2);
 
         $response = $service->commitSession($session, new Response());
 
@@ -60,8 +57,9 @@ class CacheSessionServiceCest extends SessionServiceTest
 
         $session = $service->createSession((new ServerRequest())->withCookieParams($cookies));
 
-        $I->assertFalse($session->has(TestSessionModelA::class));
-        $I->assertFalse($session->has(TestSessionModelA::class));
+        $I->assertNull($session->get(TestSessionModelA::class)->foo);
+        $I->assertNull($session->get(TestSessionModelB::class)->foo);
+
         $I->assertNotEquals($model_1, $session->get(TestSessionModelA::class));
         $I->assertNotEquals($model_2, $session->get(TestSessionModelB::class));
     }

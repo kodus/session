@@ -33,17 +33,13 @@ abstract class SessionServiceTest
 
         $I->assertNotEquals($session_id_1, $session_id_2, "A request without a session cookie gets a new session");
 
-        $session_model_a_1 = new TestSessionModelA();
+        $session_model_a_1 = $session_data_1->get(TestSessionModelA::class);
         $session_model_a_1->foo = "hello";
         $session_model_a_1->bar = "world";
 
-        $session_data_1->put($session_model_a_1);
-
-        $session_model_a_2 = new TestSessionModelA();
+        $session_model_a_2 = $session_data_2->get(TestSessionModelA::class);
         $session_model_a_2->foo = "bonjour";
         $session_model_a_2->bar = "le monde";
-
-        $session_data_2->put($session_model_a_2);
 
         $response_1 = $session_service->commitSession($session_data_1, new Response());
         $response_2 = $session_service->commitSession($session_data_2, new Response());

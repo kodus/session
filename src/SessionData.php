@@ -15,9 +15,14 @@ class SessionData implements Session
     private $session_id;
 
     /**
-     * @var mixed[] key/value map of session-data
+     * @var mixed[] map where fully-qualified class-name => serialized data
      */
     private $data = [];
+
+    /**
+     * @var SessionModel[] map where fully-qualified class-name => instance
+     */
+    private $objects = [];
 
     /**
      * @param string $session_id
@@ -42,7 +47,19 @@ class SessionData implements Session
      */
     public function getData()
     {
-        return $this->data;
+        $data = $this->data;
+
+        foreach ($this->objects as $object) {
+            $key = get_class($object);
+
+            if ($object->isEmpty()) {
+                unset($data[$key]);
+            } else {
+                $data[$key] = serialize($object);
+            }
+        }
+
+        return $data;
     }
 
     public function get(string $type): SessionModel
@@ -51,44 +68,12 @@ class SessionData implements Session
             throw new InvalidTypeException("The class {$type} does not exists");
         }
 
-        if (isset($this->data[$type])) {
-            return unserialize($this->data[$type]);
+        if (! isset($this->objects[$type])) {
+            $this->objects[$type] = isset($this->data[$type])
+                ? unserialize($this->data[$type])
+                : new $type;
         }
 
-        return new $type;
-    }
-
-    public function put(SessionModel $object)
-    {
-        $type = get_class($object);
-
-        $this->data[$type] = serialize($object);
-    }
-
-    public function has(string $type): bool
-    {
-        return (isset($this->data[$type]) && class_exists($type));
-    }
-
-    public function remove($model)
-    {
-        if (is_string($model)) {
-            unset($this->data[$model]);
-
-            return;
-        }
-
-        if ($model instanceof SessionModel) {
-            unset($this->data[get_class($model)]);
-
-            return;
-        }
-
-        throw new InvalidTypeException("Session::remove must be called with a string or an instance of " . SessionModel::class);
-    }
-
-    public function clear()
-    {
-        $this->data = [];
+        return $this->objects[$type];
     }
 }

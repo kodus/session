@@ -44,5 +44,11 @@ class SessionDataCest
         $I->assertEquals($model, $session->get(TestSessionModelA::class), "it restores the model instance from data");
 
         $I->assertSame($model->foo, $session->get(TestSessionModelA::class)->foo, "it preserves the model state");
+
+        $session->clear();
+
+        $I->assertSame([], $session->getData(), "can clear session state");
+
+        $I->assertNotSame($model, $session->get(TestSessionModelA::class), "it creates a new session model after clear()");
     }
 }

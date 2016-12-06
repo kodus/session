@@ -84,6 +84,12 @@ class SessionData implements Session
         return $this->objects[$type];
     }
 
+    public function clear()
+    {
+        $this->data = [];
+        $this->objects = [];
+    }
+
     /**
      * Internally checksum a class implementation.
      *

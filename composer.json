@@ -6,6 +6,10 @@
         {
             "name": "Thomas Nordahl Pedersen",
             "email": "thno@fynskemedier.dk"
+        },
+        {
+            "name": "Rasmus Schultz",
+            "email": "rasc@jfmedier.dk"
         }
     ],
     "minimum-stability": "dev",

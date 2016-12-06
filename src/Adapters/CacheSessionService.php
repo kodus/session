@@ -26,9 +26,9 @@ class CacheSessionService implements SessionService
     const TWO_WEEKS = 1209600;
 
     /**
-     * @var string session cookie name
+     * @var string session cookie name (weird name as recommended by OWASP)
      */
-    const COOKIE_NAME = "kodus.session";
+    const COOKIE_NAME = "KSID";
 
     /**
      * @var CacheInterface

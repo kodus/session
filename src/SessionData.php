@@ -87,7 +87,10 @@ class SessionData implements Session
     /**
      * Internally checksum a class implementation.
      *
-     * Any change to the class source-file will cause invalidation of the session-model,
+     * Any change to the class source-file will cause invalidation of the session-model, such
+     * that changes to the code will effectively cause session-models to re-initialize to their
+     * default state - this is necessary because even a change to a type-hint in a doc-block
+     * could cause an unserialize() call to inject the wrong type of value.
      *
      * @param string $type fully-qualified class-name
      *

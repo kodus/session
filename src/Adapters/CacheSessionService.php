@@ -93,7 +93,13 @@ class CacheSessionService implements SessionService
     {
         $session_id = $session->getSessionID();
 
-        $this->storage->set($session_id, $session->getData(), $this->ttl);
+        $data = $session->getData();
+
+        if (count($data) === 0) {
+            $this->storage->delete($session_id);
+        } else {
+            $this->storage->set($session_id, $data, $this->ttl);
+        }
 
         $secure = $this->secure_only ? " Secure;" : "";
         $header = sprintf(self::COOKIE_NAME . "=%s; Path=/; HTTPOnly;%s", $session_id, $secure);

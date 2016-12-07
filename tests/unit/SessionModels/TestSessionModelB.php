@@ -16,7 +16,7 @@ class TestSessionModelB implements SessionModel
      */
     public $bar;
 
-    public function isEmpty()
+    public function isEmpty(): bool
     {
         return empty($this->foo) && empty($this->bar);
     }

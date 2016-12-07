@@ -25,7 +25,8 @@ This prevents broken session states as a result of critical errors.
 
 ## Session models
 
-When storing data in session, the first step is to define you session model. 
+When storing data in session, the first step is to define your session model. You can think of a session model class
+as a container class for your session data.
 
 A good example of a session model could be a user session model. Let's look at a user session, where both the ID and the
 full name of the user needs to be stored in session:
@@ -43,7 +44,7 @@ class UserSession implements SessionModel
     
     public function getUserID(): int
     {
-        return $this->user_id;
+        return $this->user_id ?: 0;
     }
     
     public function setFullName(string $full_name)
@@ -53,13 +54,21 @@ class UserSession implements SessionModel
     
     public function getFullName(): string
     {
-        return $this->full_name;
+        return $this->full_name ?: "";
+    }
+        
+    public function isEmpty(): bool
+    {
+        return empty($this->user_id) && empty($this->full_name);
     }
 }
 ```
 
 These models should be encapsulated to the current domain. In other words, don't be tempted to collect all session data
 into a big "catch-all" session model.
+
+The interface `SessionModel` only requires you to implement the method `isEmpty()`, so you can define you session models
+to your preferred style, as long as the following holds true:
 
 **Instances of `SessionModel` MUST be able to be serialized and deserialized by native PHP 
 serialization functions without loss of data.**
@@ -69,11 +78,60 @@ serialization functions without loss of data.**
 It is strongly encouraged that implementations of `SessionModel` should only have attributes and methods specifically 
 related to storing session data.
 
-The interface `SessionModel` is an example of a Marker interface. 
-[You can read more about the Marker Interface Pattern on wikipedia.](https://en.wikipedia.org/wiki/Marker_interface_pattern)
+`SessionModel::isEmpty(): bool`: This method should only return true when a session models state is the same as when it was first constructed. When
+serializing the session models this is used for garbage collection, removing empty models from storage.
 
 ## Session
-Storing and fetching session models from the session is done through the `Session` interface.
+
+The interface `Session` defines a locator for your session models. 
+
+`Session::get(string type): SessionModel`
+
+`get()` returns a reference to the session model. All changes made to the instance are stored at the end of the request.
+
+```php
+
+/** @var $user_session */
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
 
 ```php
 /** @var UserSession $user_session */

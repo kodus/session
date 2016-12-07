@@ -64,7 +64,7 @@ class CacheSessionService implements SessionService
      *
      * @return SessionData
      */
-    public function createSession(ServerRequestInterface $request)
+    public function createSession(ServerRequestInterface $request): SessionData
     {
         $cookies = $request->getCookieParams();
 
@@ -89,7 +89,7 @@ class CacheSessionService implements SessionService
      *
      * @return ResponseInterface
      */
-    public function commitSession(SessionData $session, ResponseInterface $response)
+    public function commitSession(SessionData $session, ResponseInterface $response): ResponseInterface
     {
         $session_id = $session->getSessionID();
 

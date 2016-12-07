@@ -29,7 +29,7 @@ class SessionData implements Session
      * @param string $session_id
      * @param array  $data
      */
-    public function __construct($session_id, array $data)
+    public function __construct(string $session_id, array $data)
     {
         $this->session_id = $session_id;
         $this->data = $data;
@@ -38,7 +38,7 @@ class SessionData implements Session
     /**
      * @return string
      */
-    public function getSessionID()
+    public function getSessionID(): string
     {
         return $this->session_id;
     }
@@ -46,7 +46,7 @@ class SessionData implements Session
     /**
      * @return mixed[]
      */
-    public function getData()
+    public function getData(): array
     {
         $data = $this->data;
 
@@ -102,7 +102,7 @@ class SessionData implements Session
      *
      * @return string MD5 checksum
      */
-    protected function checksum($type)
+    protected function checksum(string $type): string
     {
         static $checksum = [];
 

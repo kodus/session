@@ -1,7 +1,6 @@
 <?php
 namespace Kodus\Session;
 
-use Kodus\Session\SessionData;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -14,7 +13,7 @@ interface SessionService
      *
      * @return SessionData
      */
-    public function createSession(ServerRequestInterface $request);
+    public function createSession(ServerRequestInterface $request): SessionData;
 
     /**
      * Commit Session to storage and decorate the given Response with the Session ID cookie.
@@ -24,5 +23,5 @@ interface SessionService
      *
      * @return ResponseInterface
      */
-    public function commitSession(SessionData $session, ResponseInterface $response);
+    public function commitSession(SessionData $session, ResponseInterface $response): ResponseInterface;
 }

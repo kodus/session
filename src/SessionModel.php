@@ -14,5 +14,5 @@ interface SessionModel
     /**
      * @return bool TRUE, if this session model is in an "empty" state (and can be garbage-collected)
      */
-    public function isEmpty();
+    public function isEmpty(): bool;
 }

@@ -83,100 +83,83 @@ serializing the session models this is used for garbage collection, removing emp
 
 ## Session
 
-The interface `Session` defines a locator for your session models. 
+The interface `Session` defines a locator for your session models. You get session models for the current session by
+calling get:
 
 `Session::get(string type): SessionModel`
 
-`get()` returns a reference to the session model. All changes made to the instance are stored at the end of the request.
-
-```php
-
-/** @var $user_session */
-
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
- 
+The `get()` method returns a reference to the session model. All changes made to the instance are stored at the end of the request.
 
 ```php
 /** @var UserSession $user_session */
 $user_session = $session->get(UserSession::class);
-
-$user_session->setFullName("Hans Christian Andersen");
-$user_session->setUserID(1);
-
-$session->put($user_session);
 ```
 
-`Session::get()` will always return an instance of the session model. If none has been stored, an empty instance is 
-returned.
+**Session models are always available:**<br>
+Only one instance of a session model is available per session, and it is always available. If an instance of the 
+session model was not stored in cache, a new instance will be created and returned by `get()`.
 
-Whether or not an instance of a specific model has been stored in session can be verified with `Session::has()`:
+This means you can always assume that an instance of the session model is available.
+ 
+**Deleting session models:**<br>
+Because session models are always available, you will never delete a session model as such. If you want to easily
+clear the state of the session model, you can add a clear method to the session model:
 
 ```php
-$session->has(UserSession::class) //returns a boolean
+class UserSession implements SessionModel
+{
+    private $user_id;
+    private $full_name;
+    
+    public function clear()
+    {
+        unset($this->user_id);
+        unset($this->full_name);
+    }
+
+    //Rest of the methods here
+}
 ```
 
-Session models can be removed individually:
+**Flash messages:**<br>
+A flash message is a message that can only be read once, e.g. notifications. With the session model concept this 
+becomes a trivial task:
 
 ```php
-$session->remove(UserSession::class);
+class Notifications implements SessionModel
+{
+    private $notifications = [];
+
+    public function add(string $message)
+    {
+        $this->notifications[] = $message;
+    }
+    
+    public function take()
+    {
+        $notifications = $this->notifications;
+        
+        $this->notifications = [];
+        
+        return $notifications;
+    }
+
+    public function isEmpty(): bool
+    {
+        return count($this->notifications) == 0;
+    }
+}
 ```
-
-Or the whole session can be cleared, if needed.
-
-```php
-$session->clear();
-```
-
-## Session Data 
-
-The class `SessionData` implements the `Session` interface. `SessionData` does not write session data directly to
-storage, but instead it keeps the `SessionModel` instances in a serialized form to be fetched at the end of the current
-request.
 
 ## Session Service
 
-`SessionService` defines an interface for creating a `SessionData` instance from a PSR-7 `ServerRequestInterface`
+`SessionService` defines an interface for creating an instance of the class `SessionData` from a PSR-7 `ServerRequestInterface`
 adapter, committing changes made to `SessionData` to storage, and adding a session cookie to a PSR-7 `ResponseInterface`
 adapter.
 
-`SessionService::beginSession(ServerRequestInterface $request): Session`
+`SessionData` implements `Session`. 
+
+`SessionService::beginSession(ServerRequestInterface $request): SessionData`
 
 `SessionService::commitSession(SessionData $session, ResponseInterface $response): ResponseInterface`
 
@@ -208,51 +191,3 @@ $service = new \Kodus\Session\Adapters\CacheSessionService($simplecache, "salt s
 
 $middleware = new \Kodus\Session\SessionMiddleware($service);
 ```
-
-## Tips & Tricks
-
-### Typehint specific session model
-
-When fetching `SessionModel` instances from the `Session` interface, we only get a typehint for the general type 
-`SessionModel`, rather than the specific implementation. This is why we need the added docblock for IDE's to recognize
-the specific type.
-
-```php
-/** @var UserSession $user_session */
-$user_session = $session->get(UserSession::class);
-```
-
-There currently is no way of fetching specific classes in a generic and type-safe way in PHP 
-("[Dreaming of Generics](https://wiki.php.net/rfc/generics)"&trade;).
-
-It is however possible to add type safety for fetching session models, if you are willing to accept an extra layer
-of boiler plate code. This can be accomplished by making small, isolated services for working with specific 
-session models.
-
-
-
-```php
-class UserSessionService
-{
-    /** @var SessionService */
-    private $session_service;
-    
-    public function __construct(SessionService $session_service)
-    {
-        $this->session_service = $session_service;
-    }
-    
-    public function set(UserSession $user_session)
-    {
-        $this->session_service->set($user_session);
-    }
-    
-    public function get(): UserSession
-    {
-        return $this->session_service->get(UserSession::class);
-    }
-    //... etc.
-}
-```
-This might seem like a lot of code to get a specific type hint on the get method, so we'll leave this design choice up
-to you. 

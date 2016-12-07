@@ -97,6 +97,7 @@ class CacheSessionService implements SessionService
 
         if (count($data) === 0) {
             $this->storage->delete($session_id);
+            // TODO we should "delete" the cookie as well (set it as NULL, causing the session ID to renew)
         } else {
             $this->storage->set($session_id, $data, $this->ttl);
         }

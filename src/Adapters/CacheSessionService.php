@@ -48,9 +48,9 @@ class CacheSessionService implements SessionService
     /**
      * @param CacheInterface $storage     PSR-16 cache implementation, for session-data storage
      * @param int            $ttl         time to live (in seconds; defaults to two weeks)
-     * @param bool           $secure_only If true, sessions are only recognized over HTTPS
+     * @param bool           $secure_only if TRUE, the session cookie is flagged as "Secure" (SSL transport required)
      */
-    public function __construct(CacheInterface $storage, int $ttl = self::TWO_WEEKS, bool $secure_only = true)
+    public function __construct(CacheInterface $storage, int $ttl = self::TWO_WEEKS, bool $secure_only = false)
     {
         $this->storage = $storage;
         $this->ttl = $ttl;
@@ -102,6 +102,7 @@ class CacheSessionService implements SessionService
         }
 
         $secure = $this->secure_only ? " Secure;" : "";
+
         $header = sprintf(self::COOKIE_NAME . "=%s; Path=/; HTTPOnly;%s", $session_id, $secure);
 
         return $response->withAddedHeader(self::SET_COOKIE_HEADER, $header);

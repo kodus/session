@@ -2,9 +2,9 @@
 
 namespace Kodus\Session\Tests\Unit\Adapters;
 
+use Kodus\Cache\MockCache;
 use Kodus\Session\Adapters\CacheSessionService;
 use Kodus\Session\SessionService;
-use Kodus\Session\Tests\Unit\Mocks\CacheMock;
 use Kodus\Session\Tests\Unit\SessionModels\TestSessionModelA;
 use Kodus\Session\Tests\Unit\SessionModels\TestSessionModelB;
 use Kodus\Session\Tests\Unit\SessionServiceTest;
@@ -16,7 +16,7 @@ class CacheSessionServiceCest extends SessionServiceTest
 {
     public function sessionLifeTime(UnitTester $I)
     {
-        $cache = new CacheMock(0);
+        $cache = new MockCache(0);
 
         $service = new CacheSessionService($cache, 3600, false); //Session lasts 3600 sec. = 1 hour
 
@@ -32,7 +32,7 @@ class CacheSessionServiceCest extends SessionServiceTest
 
         $cookies = $this->getCookies($response);
 
-        $cache->time = 1800; //Half an hour passes
+        $cache->skipTime(1800); //Half an hour passes
 
         $session = $service->createSession((new ServerRequest())->withCookieParams($cookies));
 
@@ -42,7 +42,7 @@ class CacheSessionServiceCest extends SessionServiceTest
         $response = $service->commitSession($session, new Response());
         $cookies = $this->getCookies($response);
 
-        $cache->time = 3601; //1 hour and 1 second since session initiated, only ½ hours since last interaction.
+        $cache->skipTime(1801); //1 hour and 1 second since session initiated, only ½ hours since last interaction.
 
         $session = $service->createSession((new ServerRequest())->withCookieParams($cookies));
 
@@ -53,7 +53,7 @@ class CacheSessionServiceCest extends SessionServiceTest
 
         $cookies = $this->getCookies($response);
 
-        $cache->time = 7202; //Over an hour since last interaction
+        $cache->skipTime(5401); //Over an hour since last interaction
 
         $session = $service->createSession((new ServerRequest())->withCookieParams($cookies));
 
@@ -66,6 +66,6 @@ class CacheSessionServiceCest extends SessionServiceTest
 
     protected function getSessionService(): SessionService
     {
-        return new CacheSessionService(new CacheMock(0), CacheSessionService::TWO_WEEKS, false);
+        return new CacheSessionService(new MockCache(0), CacheSessionService::TWO_WEEKS, false);
     }
 }

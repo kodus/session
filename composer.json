@@ -25,7 +25,7 @@
         "codeception/codeception": "^2",
         "zendframework/zend-diactoros": "^1.3",
         "mindplay/simple-cache": "*",
-        "kodus/mock-cache": "dev-feature/update-simple-cache-to-first-release as 0.1.0"
+        "kodus/mock-cache": "^1.0."
     },
     "autoload": {
         "psr-4": {

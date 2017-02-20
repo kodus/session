@@ -1,4 +1,8 @@
 actor: Tester
+coverage:
+    enabled: true
+    include:
+        - src/*
 paths:
     tests: tests
     log: tests/_output

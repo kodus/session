@@ -1,7 +1,7 @@
 <?php
 namespace Kodus\Session\Adapters;
 
-use Kodus\Session\Components\UUID;
+use Kodus\Helpers\UUID;
 use Kodus\Session\SessionData;
 use Kodus\Session\SessionService;
 use Psr\Http\Message\ResponseInterface;

@@ -1,5 +1,6 @@
 {
     "name": "kodus/session",
+    "description": "A simple interface for storing and retrieving session data without the use of PHP's native session handling",
     "type": "library",
     "license": "MIT",
     "authors": [

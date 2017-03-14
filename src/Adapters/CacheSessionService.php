@@ -16,11 +16,6 @@ class CacheSessionService implements SessionService
     const SET_COOKIE_HEADER = "Set-Cookie";
 
     /**
-     * @var string
-     */
-    const USER_AGENT_HEADER = "User-Agent";
-
-    /**
      * @var int two weeks in seconds
      */
     const TWO_WEEKS = 1209600;

@@ -16,11 +16,6 @@ class CacheSessionService implements SessionService
     const SET_COOKIE_HEADER = "Set-Cookie";
 
     /**
-     * @var string
-     */
-    const USER_AGENT_HEADER = "User-Agent";
-
-    /**
      * @var int two weeks in seconds
      */
     const TWO_WEEKS = 1209600;
@@ -104,7 +99,7 @@ class CacheSessionService implements SessionService
 
         $secure = $this->secure_only ? " Secure;" : "";
 
-        $header = sprintf(self::COOKIE_NAME . "=%s; Path=/; HTTPOnly;%s", $session_id, $secure);
+        $header = sprintf(self::COOKIE_NAME . "=%s; Path=/; HTTPOnly; SameSite=Lax;%s", $session_id, $secure);
 
         return $response->withAddedHeader(self::SET_COOKIE_HEADER, $header);
     }

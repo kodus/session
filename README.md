@@ -6,11 +6,13 @@ A simple interface for storing and retrieving session data without the use of PH
 `kodus/session` requires PHP version 7.0 or newer.
 
 ## Installation
+
 If your project is using composer, simply require the package:
 
-`composer require kodus/session`
+    composer require kodus/session
 
 ## Introduction
+
 This library provides a way of working with session data that promotes type safety and simplicity, without
 relying on PHP's native session handling.
 
@@ -70,10 +72,10 @@ into a big "catch-all" session model.
 The interface `SessionModel` only requires you to implement the method `isEmpty()`, so you can define you session models
 to your preferred style, as long as the following holds true:
 
-**Instances of `SessionModel` MUST be able to be serialized and deserialized by native PHP 
-serialization functions without loss of data.**
+  * **Instances of `SessionModel` MUST be able to be serialized and deserialized by native PHP
+    serialization functions without loss of data.**
 
-**Instances of `SessionModel` MUST have a constructor method with no arguments, or default values for all constructor arguments.**
+  * **Instances of `SessionModel` MUST have a constructor method with no arguments, or default values for all constructor arguments.**
 
 It is strongly encouraged that implementations of `SessionModel` should only have attributes and methods specifically 
 related to storing session data.
@@ -84,9 +86,7 @@ serializing the session models this is used for garbage collection, removing emp
 ## Session
 
 The interface `Session` defines a locator for your session models. You get session models for the current session by
-calling get:
-
-`Session::get(string type): SessionModel`
+calling the `get` method.
 
 The `get()` method returns a reference to the session model. All changes made to the instance are stored at the end of the request.
 
@@ -95,13 +95,15 @@ The `get()` method returns a reference to the session model. All changes made to
 $user_session = $session->get(UserSession::class);
 ```
 
-**Session models are always available:**<br>
+#### Session models are always available
+
 Only one instance of a session model is available per session, and it is always available. If an instance of the 
 session model was not stored in cache, a new instance will be created and returned by `get()`.
 
 This means you can always assume that an instance of the session model is available.
  
-**Deleting session models:**<br>
+#### Deleting session models
+
 Because session models are always available, you will never delete a session model as such. If you want to easily
 clear the state of the session model, you can add a clear method to the session model:
 
@@ -121,7 +123,8 @@ class UserSession implements SessionModel
 }
 ```
 
-**Flash messages:**<br>
+#### Flash messages
+
 A flash message is a message that can only be read once, e.g. notifications. With the session model concept this 
 becomes a trivial task:
 
@@ -167,7 +170,7 @@ adapter.
 
 Customizing session storage and cookies is done by implementing adapters of the `SessionService` interface.
 
-Currently `kodus\session` comes with the adapter `CacheSessionService`. `CacheSessionService` depends on an
+Currently `kodus/session` comes with the adapter `CacheSessionService`. `CacheSessionService` depends on an
 implementation of the PSR-16 cache interface for storing data.
 
 We recommend the ScrapBook library as a cache provider for `CacheSessionService`.
@@ -175,11 +178,13 @@ We recommend the ScrapBook library as a cache provider for `CacheSessionService`
 [Find ScrapBook on Github](https://github.com/matthiasmullie/scrapbook).
 
 ## Middleware
-`kodus\session` comes with an implementation of the PSR-15 middleware interface. Use this with your PSR-15 
+
+`kodus/session` comes with an implementation of the PSR-15 middleware interface. Use this with your PSR-15
 compatible middleware stack, or use it as reference for making a middleware that is compatible with your middleware
 stack.
 
 ## Bootstrapping
+
 Here's an example of how to bootstrap `CacheSessionService` using SQLLite and ScrapBook for storage:
 
 ```php

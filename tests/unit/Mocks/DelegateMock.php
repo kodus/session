@@ -2,11 +2,10 @@
 
 namespace Kodus\Session\Tests\Unit\Mocks;
 
-
 use Closure;
-use Interop\Http\Middleware\DelegateInterface;
-use Psr\Http\Message\RequestInterface;
+use Interop\Http\Server\RequestHandlerInterface;
 use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
 use Zend\Diactoros\Response;
 
 /**
@@ -20,7 +19,7 @@ use Zend\Diactoros\Response;
  *
  * @see \Kodus\Session\Tests\Unit\SessionMiddlewareCest
  */
-class DelegateMock implements DelegateInterface
+class DelegateMock implements RequestHandlerInterface
 {
     /**
      * @var Closure
@@ -29,17 +28,17 @@ class DelegateMock implements DelegateInterface
 
     public function __construct(Closure $next)
     {
-        $this->next = $next ?? function () {};
+        $this->next = $next;
     }
 
     /**
      * Dispatch the next available middleware and return the response.
      *
-     * @param RequestInterface $request
+     * @param ServerRequestInterface $request
      *
      * @return ResponseInterface
      */
-    public function process(RequestInterface $request)
+    public function handle(ServerRequestInterface $request): ResponseInterface
     {
         $response = call_user_func_array($this->next, [$request]);
 

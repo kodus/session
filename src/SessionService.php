@@ -94,7 +94,6 @@ class SessionService
 
         if (count($data) === 0) {
             $this->storage->destroy($session_id);
-            // TODO we should "delete" the cookie as well (set it as NULL, causing the session ID to renew)
         } else {
             $this->storage->write($session_id, $data, $this->ttl);
         }

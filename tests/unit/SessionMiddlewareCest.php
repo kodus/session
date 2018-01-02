@@ -3,9 +3,10 @@
 namespace Kodus\Session\Tests\Unit;
 
 use Kodus\Cache\MockCache;
-use Kodus\Session\Adapters\CacheSessionService;
+use Kodus\Session\Adapters\SimpleCacheAdapter;
 use Kodus\Session\Session;
 use Kodus\Session\SessionMiddleware;
+use Kodus\Session\SessionService;
 use Kodus\Session\Tests\Unit\Mocks\DelegateMock;
 use Kodus\Session\Tests\Unit\SessionModels\TestSessionModelA;
 use Psr\Http\Message\ResponseInterface;
@@ -24,7 +25,9 @@ class SessionMiddlewareCest
 
         $cache = new MockCache();
 
-        $service = new CacheSessionService($cache, CacheSessionService::TWO_WEEKS, false);
+        $storage = new SimpleCacheAdapter($cache);
+
+        $service = new SessionService($storage, SessionService::TWO_WEEKS, false);
 
         $middleware = new SessionMiddleware($service);
 

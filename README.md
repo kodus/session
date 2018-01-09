@@ -5,7 +5,7 @@ A simple interface for storing and retrieving session data without the use of PH
 
 `kodus/session` requires PHP version 7.0 or newer.
 
-[![PHP Version](https://img.shields.io/badge/php-7.0%2B-blue.svg)](https://packagist.org/packages/kodus/session)
+[![PHP Version](https://img.shields.io/badge/php-7.1%2B-blue.svg)](https://packagist.org/packages/kodus/session)
 [![Build Status](https://travis-ci.org/kodus/session.svg?branch=master)](https://travis-ci.org/kodus/session)
 
 ## Installation
@@ -105,7 +105,7 @@ session model was not stored in cache, a new instance will be created and return
 
 This means you can always assume that an instance of the session model is available.
  
-#### Deleting session models
+#### Deleting individual session models
 
 Because session models are always available, you will never delete a session model as such. If you want to easily
 clear the state of the session model, you can add a clear method to the session model:
@@ -125,6 +125,24 @@ class UserSession implements SessionModel
     //Rest of the methods here
 }
 ```
+
+#### Destroying an entire session
+
+In rare cases, you may wish to destroy an entire session. For example, you may wish to forcibly destroy
+the active session of a user who has been blocked/banned from the site by an administrator.
+
+You can do this by accessing the underlying `SessionStorage` implementation:
+
+```php
+$storage->delete($session_id);
+```
+
+Note that this requires you to track the active Session ID for your users, which is outside the
+scope of this package - you could, for example, store the most recent Session ID in a column in
+your user-table in the database.
+
+If you're using a dependency injection container, you should bootstrap the `SessionStorage` as
+a separate component, so you can access it independently of the `SessionService`.
 
 #### Flash messages
 
@@ -169,16 +187,14 @@ adapter.
 
 `SessionService::commitSession(SessionData $session, ResponseInterface $response): ResponseInterface`
 
-### Adapters
+### Storage Adapters
 
-Customizing session storage and cookies is done by implementing adapters of the `SessionService` interface.
+Customizing session storage is possible by implementing the `SessionStorage` interface.
 
-Currently `kodus/session` comes with the adapter `CacheSessionService`. `CacheSessionService` depends on an
-implementation of the PSR-16 cache interface for storing data.
+Currently `kodus/session` comes with a `SimpleCacheAdapter`, which depends on an
+implementation of the PSR-16 cache interface for the physical storage of raw Session Data.
 
-We recommend the ScrapBook library as a cache provider for `CacheSessionService`.
-
-[Find ScrapBook on Github](https://github.com/matthiasmullie/scrapbook).
+We recommend the [ScrapBook](https://github.com/matthiasmullie/scrapbook) package as a cache provider for `SimpleCacheAdapter`.
 
 ## Middleware
 
@@ -188,14 +204,24 @@ stack.
 
 ## Bootstrapping
 
-Here's an example of how to bootstrap `CacheSessionService` using SQLLite and ScrapBook for storage:
+Here's an example of how to fully bootstrap all layers of the session abstraction, from a `PDO` database
+connection at the lowest level, over ScrapBook's SQLLite cache provider, to our PSR-16 Session Storage adapter,
+and finally to PSR-15 middleware:
 
 ```php
-$client = new \PDO('sqlite:cache.db');
-$cache = new \MatthiasMullie\Scrapbook\Adapters\SQLite($client);
-$simplecache = new \MatthiasMullie\Scrapbook\Psr16\SimpleCache($cache);
+use PDO;
+use MatthiasMullie\Scrapbook\Adapters\SQLite;
+use MatthiasMullie\Scrapbook\Psr16\SimpleCache;
+use Kodus\Session\Adapters\SimpleCacheAdapter;
+use Kodus\Session\SessionMiddleware;
 
-$service = new \Kodus\Session\Adapters\CacheSessionService($simplecache, "salt string for session cookie checksum");
+$connection = new PDO('sqlite:cache.db');
 
-$middleware = new \Kodus\Session\SessionMiddleware($service);
+$cache = new SimpleCache(new SQLite($connection));
+
+$storage = new SimpleCacheAdapter($cache);
+
+$service = new SessionService($storage);
+
+$middleware = new SessionMiddleware($service);
 ```

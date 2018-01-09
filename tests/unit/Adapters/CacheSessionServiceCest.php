@@ -3,7 +3,7 @@
 namespace Kodus\Session\Tests\Unit\Adapters;
 
 use Kodus\Cache\MockCache;
-use Kodus\Session\Adapters\CacheSessionService;
+use Kodus\Session\Adapters\SimpleCacheAdapter;
 use Kodus\Session\SessionService;
 use Kodus\Session\Tests\Unit\SessionModels\TestSessionModelA;
 use Kodus\Session\Tests\Unit\SessionModels\TestSessionModelB;
@@ -18,7 +18,9 @@ class CacheSessionServiceCest extends SessionServiceTest
     {
         $cache = new MockCache(0);
 
-        $service = new CacheSessionService($cache, 3600, false); //Session lasts 3600 sec. = 1 hour
+        $storage = new SimpleCacheAdapter($cache);
+
+        $service = new SessionService($storage, 3600, false); // Session lasts 3600 sec. = 1 hour
 
         $session = $service->createSession(new ServerRequest());
 
@@ -66,6 +68,10 @@ class CacheSessionServiceCest extends SessionServiceTest
 
     protected function getSessionService(): SessionService
     {
-        return new CacheSessionService(new MockCache(0), CacheSessionService::TWO_WEEKS, false);
+        $cache = new MockCache(0);
+
+        $storage = new SimpleCacheAdapter($cache);
+
+        return new SessionService($storage, SessionService::TWO_WEEKS, false);
     }
 }

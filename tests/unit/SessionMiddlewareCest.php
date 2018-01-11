@@ -43,6 +43,8 @@ class SessionMiddlewareCest
             $I->assertInstanceOf(Session::class, $session,
                 "SessionMiddleware adds an instance of Session to server request attributes");
 
+            $I->assertNotEmpty($session->getSessionID());
+
             /** @var TestSessionModelA $model */
             $model = $session->get(TestSessionModelA::class);
 

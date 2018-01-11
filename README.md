@@ -3,8 +3,6 @@ kodus/session
 
 A simple interface for storing and retrieving session data without the use of PHP's native session handling.
 
-`kodus/session` requires PHP version 7.0 or newer.
-
 [![PHP Version](https://img.shields.io/badge/php-7.1%2B-blue.svg)](https://packagist.org/packages/kodus/session)
 [![Build Status](https://travis-ci.org/kodus/session.svg?branch=master)](https://travis-ci.org/kodus/session)
 

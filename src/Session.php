@@ -33,4 +33,9 @@ interface Session
      * @return void
      */
     public function clear();
+
+    /**
+     * @return string
+     */
+    public function getSessionID(): string;
 }

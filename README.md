@@ -173,19 +173,35 @@ class Notifications implements SessionModel
 }
 ```
 
+## Middleware
+
+The package includes a PSR-15 compliant `SessionMiddleware` for easy integration of `SessionService`.
+
+Either use this with your PSR-15 compatible middleware stack, or use it as reference for making custom middleware
+that integrates more deeply with the rest of your stack.
+
+Put this near the top of your middleware stack - it will initialize the session state, then delegate
+unconditionally to the rest of your middleware stack, and finally commits any changes to session storage.
+
+The request will be decorated with a `SessionData` instance, which can be obtained from the request, in lower
+layers of your middleware stack, using e.g. `$request->getAttribute(SessionMiddleware::ATTRIBUTE_NAME)`.
+
 ## Session Service
 
-`SessionService` defines an interface for creating an instance of the class `SessionData` from a PSR-7 `ServerRequestInterface`
-adapter, committing changes made to `SessionData` to storage, and adding a session cookie to a PSR-7 `ResponseInterface`
-adapter.
+This section details how to integrate `SessionService` into your own stack.
 
-`SessionData` implements `Session`. 
+To initialize a session (at the beginning of a request) use the `beginSession()` method, which returns an instance
+of `SessionData`, which represents the session state for the request you're processing.
 
-`SessionService::beginSession(ServerRequestInterface $request): SessionData`
+`SessionData` implements `Session`, which defines the public facet of `SessionData` - type-hint against `Session`,
+for example, when providing this (e.g. via constructor-injection) to your controllers.
 
-`SessionService::commitSession(SessionData $session, ResponseInterface $response): ResponseInterface`
+To commit changes to session state (at the end of a request) use the `commitSession()` method, which also adds a
+session cookie to a PSR-7 `ResponseInterface` instance.
 
-### Storage Adapters
+Refer to `SessionMiddleware` for a working implementation of this pattern.
+
+## Storage Adapters
 
 Customizing session storage is possible by implementing the `SessionStorage` interface.
 
@@ -193,12 +209,6 @@ Currently `kodus/session` comes with a `SimpleCacheAdapter`, which depends on an
 implementation of the PSR-16 cache interface for the physical storage of raw Session Data.
 
 We recommend the [ScrapBook](https://github.com/matthiasmullie/scrapbook) package as a cache provider for `SimpleCacheAdapter`.
-
-## Middleware
-
-`kodus/session` comes with an implementation of the PSR-15 middleware interface. Use this with your PSR-15
-compatible middleware stack, or use it as reference for making a middleware that is compatible with your middleware
-stack.
 
 ## Bootstrapping
 

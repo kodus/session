@@ -2,6 +2,7 @@
 
 namespace Kodus\Session;
 
+use DateTime;
 use Kodus\Helpers\UUID;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -71,15 +72,15 @@ class SessionService
             $data = $this->storage->read($session_id);
 
             if (is_array($data)) {
-                return new SessionData($session_id, $data);
+                return new SessionData($session_id, $data, false);
             }
         }
 
-        return new SessionData(UUID::create(), []);
+        return new SessionData(UUID::create(), [], true);
     }
 
     /**
-     * Commit Session to storage and decorate the given Response with the Session ID cookie.
+     * Commit Session to storage and add the Session Cookie to the given Response.
      *
      * @param SessionData       $session
      * @param ResponseInterface $response
@@ -93,15 +94,46 @@ class SessionService
         $data = $session->getData();
 
         if (count($data) === 0) {
-            $this->storage->destroy($session_id);
-        } else {
-            $this->storage->write($session_id, $data, $this->ttl);
+            if (! $session->isNew()) {
+                $this->storage->destroy($session_id);
+
+                return $response->withAddedHeader(self::SET_COOKIE_HEADER, $this->createCookie("", 0));
+            }
+
+            return $response;
         }
 
-        $secure = $this->secure_only ? " Secure;" : "";
+        $this->storage->write($session_id, $data, $this->ttl);
 
-        $header = sprintf(self::COOKIE_NAME . "=%s; Path=/; HTTPOnly; SameSite=Lax;%s", $session_id, $secure);
+        if ($session->isNew()) {
+            $response = $response->withAddedHeader(
+                self::SET_COOKIE_HEADER,
+                $this->createCookie($session_id, $this->getTime() + $this->ttl)
+            );
+        }
 
-        return $response->withAddedHeader(self::SET_COOKIE_HEADER, $header);
+        return $response;
+    }
+
+    protected function getTime(): int
+    {
+        return time();
+    }
+
+    private function createCookie(string $value, int $expires): string
+    {
+        $cookie = [
+            self::COOKIE_NAME . "={$value}",
+            "Path=/",
+            "HTTPOnly",
+            "SameSite=Lax",
+            "Expires=" . DateTime::createFromFormat("U", $expires, timezone_open('UTC'))->format(DateTime::COOKIE)
+        ];
+
+        if ($this->secure_only) {
+            $cookie[] = "Secure";
+        }
+
+        return implode("; ", $cookie);
     }
 }

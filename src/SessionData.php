@@ -26,17 +26,24 @@ class SessionData implements Session
     private $objects = [];
 
     /**
+     * @var bool indicates whether this is a new Session (for which no Session Cookie has been set yet)
+     */
+    private $is_new = false;
+
+    /**
      * @param string $session_id
      * @param array  $data
+     * @param bool   $is_new
      */
-    public function __construct(string $session_id, array $data)
+    public function __construct(string $session_id, array $data, bool $is_new)
     {
         $this->session_id = $session_id;
         $this->data = $data;
+        $this->is_new = $is_new;
     }
 
     /**
-     * @return string
+     * @return string Session ID (UUID v4)
      */
     public function getSessionID(): string
     {
@@ -88,6 +95,11 @@ class SessionData implements Session
     {
         $this->data = [];
         $this->objects = [];
+    }
+
+    public function isNew(): bool
+    {
+        return $this->is_new;
     }
 
     /**

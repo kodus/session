@@ -15,7 +15,7 @@ class SessionDataCest
 
     public function manageSessionData(UnitTester $I)
     {
-        $session = new SessionData(self::SESSION_ID, []);
+        $session = new SessionData(self::SESSION_ID, [], true);
 
         $I->assertSame(self::SESSION_ID, $session->getSessionID());
 
@@ -39,7 +39,7 @@ class SessionDataCest
 
         $I->assertArrayNotHasKey(TestSessionModelB::class, $data, "it discards the empty session model");
 
-        $session = new SessionData(self::SESSION_ID, $data);
+        $session = new SessionData(self::SESSION_ID, $data, false);
 
         $I->assertEquals($model, $session->get(TestSessionModelA::class), "it restores the model instance from data");
 

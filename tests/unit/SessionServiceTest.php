@@ -2,7 +2,9 @@
 
 namespace Kodus\Session\Tests\Unit;
 
+use Kodus\Helpers\UUID;
 use Kodus\Session\SessionService;
+use Kodus\Session\SessionStorage;
 use Kodus\Session\Tests\Unit\SessionModels\TestSessionModelA;
 use Psr\Http\Message\ResponseInterface;
 use UnitTester;
@@ -16,11 +18,24 @@ use Zend\Diactoros\ServerRequest;
  */
 abstract class SessionServiceTest
 {
-    public function basicFunctionality(UnitTester $I)
+    /**
+     * Session ID must be a valid UUID v4
+     */
+    public function createValidSessionID(UnitTester $I)
     {
-        $I->wantToTest("SessionService functionality");
+        $session_service = $this->createSessionService();
 
-        $session_service = $this->getSessionService();
+        $session = $session_service->createSession(new ServerRequest());
+
+        $I->assertTrue(UUID::isValid($session->getSessionID()), "Session ID is a valid UUID v4");
+    }
+
+    /**
+     * Unique Sessions must be generated for unique Requests
+     */
+    public function createUniqueSessions(UnitTester $I)
+    {
+        $session_service = $this->createSessionService();
 
         $request_1 = new ServerRequest();
         $request_2 = new ServerRequest();
@@ -31,46 +46,107 @@ abstract class SessionServiceTest
         $session_id_1 = $session_data_1->getSessionID();
         $session_id_2 = $session_data_2->getSessionID();
 
-        $I->assertNotEquals($session_id_1, $session_id_2, "A request without a session cookie gets a new session");
-
-        $session_model_a_1 = $session_data_1->get(TestSessionModelA::class);
-        $session_model_a_1->foo = "hello";
-        $session_model_a_1->bar = "world";
-
-        $session_model_a_2 = $session_data_2->get(TestSessionModelA::class);
-        $session_model_a_2->foo = "bonjour";
-        $session_model_a_2->bar = "le monde";
-
-        $response_1 = $session_service->commitSession($session_data_1, new Response());
-        $response_2 = $session_service->commitSession($session_data_2, new Response());
-
-        $cookies_1 = $this->getCookies($response_1);
-        $cookies_2 = $this->getCookies($response_2);
-
-        $next_request_1 = (new ServerRequest())->withCookieParams($cookies_1);
-        $next_request_2 = (new ServerRequest())->withCookieParams($cookies_2);
-
-        $session_data_1 = $session_service->createSession($next_request_1);
-        $session_data_2 = $session_service->createSession($next_request_2);
-
-        $I->assertSame($session_id_1, $session_data_1->getSessionID(), "Next requests has same session");
-        $I->assertSame($session_id_2, $session_data_2->getSessionID(), "Next requests has same session");
-
-        $I->assertEquals($session_model_a_1, $session_data_1->get(TestSessionModelA::class),
-            "SessionData contains the saved session model");
-
-        $I->assertEquals($session_model_a_2, $session_data_2->get(TestSessionModelA::class),
-            "SessionData contains the saved session model");
+        $I->assertNotEquals($session_id_1, $session_id_2, "creates unique Session IDs");
     }
 
     /**
-     * Get the instance of an implementation of SessionService to test.
+     * Session ID must must be preserved in a cookie.
      *
-     * @return SessionService
+     * A resumed Session must contain the restored Session Models from the previous Request.
+     *
+     * An updated Session must have the same Session ID and Session Models from the previous Request.
      */
-    abstract protected function getSessionService(): SessionService;
+    public function createAndResumeSession(UnitTester $I)
+    {
+        $service = $this->createSessionService();
 
-    protected function getCookies(ResponseInterface $response)
+        $first_session = $service->createSession(new ServerRequest());
+
+        $model = $first_session->get(TestSessionModelA::class);
+
+        $model->foo = "hello";
+        $model->bar = "world";
+
+        $first_response = $service->commitSession($first_session, new Response());
+
+        $I->assertSame(
+            SessionService::COOKIE_NAME . "=" . $first_session->getSessionID() . "; Path=/; HTTPOnly; SameSite=Lax; Expires=Thursday, 30-Aug-2018 13:22:47 GMT+0000",
+            $first_response->getHeaderLine("Set-Cookie"),
+            "committing emits a Session cookie"
+        );
+
+        $second_request = (new ServerRequest())->withCookieParams($this->parseSetCookie($first_response));
+
+        $second_session = $service->createSession($second_request);
+
+        $I->assertSame($first_session->getSessionID(), $second_session->getSessionID(), "second Request has same Session ID");
+
+        $I->assertEquals(
+            $model,
+            $second_session->get(TestSessionModelA::class),
+            "second Session contains the saved session model"
+        );
+
+        $model->bar = "universe";
+
+        $second_response = $service->commitSession($second_session, new Response());
+
+        $I->assertEmpty($second_response->getHeaderLine("Set-Cookie"), "resuming a Session does not re-emit cookie");
+    }
+
+    /**
+     * A resumed session, if empty, should destroy the Session ID and revoke the Session Cookie.
+     */
+    public function destroyEmptySession(UnitTester $I)
+    {
+        $service = $this->createSessionService();
+
+        $first_session = $service->createSession(new ServerRequest());
+
+        $model = $first_session->get(TestSessionModelA::class);
+
+        $model->foo = "hello";
+
+        $first_response = $service->commitSession($first_session, new Response());
+
+        $I->assertNotEmpty($first_response->getHeaderLine("Set-Cookie"));
+
+        $second_request = (new ServerRequest())->withCookieParams($this->parseSetCookie($first_response));
+
+        $second_session = $service->createSession($second_request);
+
+        $second_session->clear();
+
+        $second_response = $service->commitSession($second_session, new Response());
+
+        $I->assertSame(
+            SessionService::COOKIE_NAME . "=; Path=/; HTTPOnly; SameSite=Lax; Expires=Thursday, 01-Jan-1970 00:00:00 GMT+0000",
+            $second_response->getHeaderLine("Set-Cookie"),
+            "committing an resumed, empty session erases and expires the Session Cookie"
+        );
+    }
+
+    /**
+     * When the Session is empty, the Session ID should *not* a preserved in a cookie.
+     */
+    public function doNotCreateEmptySessions(UnitTester $I)
+    {
+        $session_service = $this->createSessionService();
+
+        $session_data = $session_service->createSession(new ServerRequest());
+
+        $response = $session_service->commitSession($session_data, new Response());
+
+        $I->assertEmpty(
+            $response->getHeaderLine("Set-Cookie"),
+            "committing an empty Session does not emit a Session cookie"
+        );
+    }
+
+    /**
+     * Parse the `Set-Cookie` header from a given Response
+     */
+    protected function parseSetCookie(ResponseInterface $response)
     {
         $cookie_headers = $response->getHeader("Set-Cookie");
 
@@ -86,5 +162,32 @@ abstract class SessionServiceTest
         }
 
         return $cookies;
+    }
+
+    /**
+     * Create an instance of a SessionStorage implementation for testing.
+     */
+    abstract protected function createSessionStorage(): SessionStorage;
+
+    /**
+     * Create an instance of a SessionService implementation for testing.
+     */
+    protected function createSessionService()
+    {
+        $storage = $this->createSessionStorage();
+
+        return new class($storage) extends SessionService {
+            private $time = 1534425767;
+
+            public function skipTime(int $seconds)
+            {
+                $this->time += $seconds;
+            }
+
+            protected function getTime(): int
+            {
+                return $this->time;
+            }
+        };
     }
 }

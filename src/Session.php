@@ -35,7 +35,7 @@ interface Session
     public function clear();
 
     /**
-     * @return string
+     * @return string Session ID (UUID v4)
      */
     public function getSessionID(): string;
 }

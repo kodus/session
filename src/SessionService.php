@@ -54,6 +54,13 @@ class SessionService
     private $expiration;
 
     /**
+     * @var string domain attribute of the session cookie (defaults to null)
+     *
+     * @link https://stackoverflow.com/a/30676300/283851
+     */
+    private $domain;
+
+    /**
      * IMPORTANT SECURITY NOTE:
      *
      * We make no attempts to prevent session hijacking - see the following post for details:
@@ -62,6 +69,13 @@ class SessionService
      *
      * The default value of `false` for `$secure_only` is intended for development *only* and
      * *must* be set to `true` in production environments!
+     *
+     * The `Domain` attribute isn't set by default, which means your session cookie will *not*
+     * be accessible from sub-domains; if you need to access the session cookie from sub-domains,
+     * you must explicitly set the `$domain` value to e.g. `"example.com"`. See the following
+     * post for additional details:
+     *
+     *     https://stackoverflow.com/a/30676300/283851
      *
      * Notes regarding TTL and expiration:
      *
@@ -77,17 +91,20 @@ class SessionService
      * @param int            $ttl         time to live (in seconds; defaults to two weeks)
      * @param bool           $secure_only if TRUE, the session cookie is flagged as "Secure" (SSL transport required)
      * @param int            $expiration  cookie expiration time (in seconds)
+     * @param string|null    $domain      cookie domain attribute (or null to omit domain attribute)
      */
     public function __construct(
         SessionStorage $storage,
         int $ttl = self::TWO_WEEKS,
         bool $secure_only = false,
-        int $expiration = self::ONE_YEAR
+        int $expiration = self::ONE_YEAR,
+        ?string $domain = null
     ) {
         $this->storage = $storage;
         $this->ttl = $ttl;
         $this->secure_only = $secure_only;
         $this->expiration = $expiration;
+        $this->domain = $domain;
     }
 
     /**
@@ -171,17 +188,23 @@ class SessionService
 
     private function createCookie(string $value, int $expires): string
     {
-        $cookie = [
-            self::COOKIE_NAME . "={$value}",
-            "Path=/",
-            "HTTPOnly",
-            "SameSite=Lax",
-            "Expires=" . DateTime::createFromFormat("U", $expires, timezone_open('UTC'))->format(DateTime::COOKIE)
-        ];
+        $cookie = [self::COOKIE_NAME . "={$value}"];
+
+        $cookie[] = "Path=/"; // session cookie accessible from any path
+
+        $cookie[] = "HTTPOnly"; // disallow client-side access (from JavaScript)
+
+        $cookie[] = "SameSite=Lax"; // see https://www.owasp.org/index.php/SameSite
+
+        if ($this->domain) {
+            $cookie[] = "Domain={$this->domain}"; // makes the cookie accessible under this domain and subdomains
+        }
 
         if ($this->secure_only) {
-            $cookie[] = "Secure";
+            $cookie[] = "Secure"; // tells the client to send this cookie only with secure (HTTPS) requests
         }
+
+        $cookie[] = "Expires=" . DateTime::createFromFormat("U", $expires, timezone_open('UTC'))->format(DateTime::COOKIE);
 
         return implode("; ", $cookie);
     }

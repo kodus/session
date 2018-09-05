@@ -206,6 +206,25 @@ abstract class SessionServiceTest
         );
     }
 
+    public function applyCookieAttributes(UnitTester $I)
+    {
+        $service = $this->createSessionService(true, "example.com");
+
+        $session = $service->createSession(new ServerRequest());
+
+        $model = $session->get(TestSessionModelA::class);
+
+        $model->foo = "hello";
+
+        $response = $service->commitSession($session, new Response());
+
+        $I->assertSame(
+            SessionService::COOKIE_NAME . "=" . $session->getSessionID() . "; Path=/; HTTPOnly; SameSite=Lax; Domain=example.com; Secure; Expires=Friday, 16-Aug-2019 13:22:47 GMT+0000",
+            $response->getHeaderLine("Set-Cookie"),
+            "applies the Secure and Domain attributes, when specified"
+        );
+    }
+
     /**
      * Parse the `Set-Cookie` header from a given Response
      */
@@ -235,11 +254,13 @@ abstract class SessionServiceTest
     /**
      * Create an instance of a SessionService implementation for testing.
      */
-    protected function createSessionService()
+    protected function createSessionService($secure_only = false, ?string $domain = null)
     {
         $storage = $this->createSessionStorage();
 
-        return new class($storage) extends SessionService {
+        return new class($storage, SessionService::TWO_WEEKS, $secure_only, SessionService::ONE_YEAR, $domain)
+            extends SessionService
+        {
             private $time = 1534425767;
 
             public function skipTime(int $seconds)

@@ -70,7 +70,7 @@ abstract class SessionServiceTest
         $first_response = $service->commitSession($first_session, new Response());
 
         $I->assertSame(
-            SessionService::COOKIE_NAME . "=" . $first_session->getSessionID() . "; Path=/; HTTPOnly; SameSite=Lax; Expires=Thursday, 30-Aug-2018 13:22:47 GMT+0000",
+            SessionService::COOKIE_NAME . "=" . $first_session->getSessionID() . "; Path=/; HTTPOnly; SameSite=Lax; Expires=Friday, 16-Aug-2019 13:22:47 GMT+0000",
             $first_response->getHeaderLine("Set-Cookie"),
             "committing emits a Session cookie"
         );
@@ -92,6 +92,69 @@ abstract class SessionServiceTest
         $second_response = $service->commitSession($second_session, new Response());
 
         $I->assertEmpty($second_response->getHeaderLine("Set-Cookie"), "resuming a Session does not re-emit cookie");
+    }
+
+    /**
+     * A renewed Session must contain the restored Session Models from the previous Session.
+     *
+     * A renewed Session must have a new Session ID.
+     *
+     * Renewing a Session must invalidate the previous Session ID.
+     */
+    public function renewSession(UnitTester $I)
+    {
+        $service = $this->createSessionService();
+
+        $first_session = $service->createSession(new ServerRequest());
+
+        $model = $first_session->get(TestSessionModelA::class);
+
+        $model->foo = "hello";
+
+        $first_response = $service->commitSession($first_session, new Response());
+
+        $I->assertSame(
+            SessionService::COOKIE_NAME . "=" . $first_session->getSessionID() . "; Path=/; HTTPOnly; SameSite=Lax; Expires=Friday, 16-Aug-2019 13:22:47 GMT+0000",
+            $first_response->getHeaderLine("Set-Cookie"),
+            "committing emits a Session cookie"
+        );
+
+        $second_request = (new ServerRequest())->withCookieParams($this->parseSetCookie($first_response));
+
+        $second_session = $service->createSession($second_request);
+
+        $second_session->renew();
+
+        $I->assertNotEquals($first_session->getSessionID(), $second_session->getSessionID(), "Session ID has changed");
+
+        $I->assertEquals(
+            $model,
+            $second_session->get(TestSessionModelA::class),
+            "second Session contains the saved session model"
+        );
+
+        $second_response = $service->commitSession($second_session, new Response());
+
+        $I->assertSame(
+            SessionService::COOKIE_NAME . "=" . $second_session->getSessionID() . "; Path=/; HTTPOnly; SameSite=Lax; Expires=Friday, 16-Aug-2019 13:22:47 GMT+0000",
+            $second_response->getHeaderLine("Set-Cookie"),
+            "committing emits a renewed Session cookie"
+        );
+
+        $request_with_old_cookie = (new ServerRequest())->withCookieParams($this->parseSetCookie($first_response));
+
+        $session_with_old_cookie = $service->createSession($request_with_old_cookie);
+
+        $I->assertTrue(
+            $session_with_old_cookie->get(TestSessionModelA::class)->isEmpty(),
+            "it must not restore session data (the session has been destroyed)"
+        );
+
+        $I->assertNotEquals(
+            $session_with_old_cookie->getSessionID(),
+            $first_session->getSessionID(),
+            "it must not reuse an invalid Session ID"
+        );
     }
 
     /**
@@ -122,7 +185,7 @@ abstract class SessionServiceTest
         $I->assertSame(
             SessionService::COOKIE_NAME . "=; Path=/; HTTPOnly; SameSite=Lax; Expires=Thursday, 01-Jan-1970 00:00:00 GMT+0000",
             $second_response->getHeaderLine("Set-Cookie"),
-            "committing an resumed, empty session erases and expires the Session Cookie"
+            "committing a resumed, empty session erases and expires the Session Cookie"
         );
     }
 

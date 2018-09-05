@@ -2,6 +2,7 @@
 
 namespace Kodus\Session;
 
+use Kodus\Helpers\UUID;
 use Kodus\Session\Exceptions\InvalidTypeException;
 use ReflectionClass;
 
@@ -14,6 +15,13 @@ class SessionData implements Session
      * @var string
      */
     private $session_id;
+
+    /**
+     * @var string|null old Session ID (if this Session was renewed)
+     *
+     * @see renew()
+     */
+    private $old_session_id;
 
     /**
      * @var mixed[] map where fully-qualified class-name => [checksum, serialized data]
@@ -95,11 +103,34 @@ class SessionData implements Session
     {
         $this->data = [];
         $this->objects = [];
+
+        // in case data is added to the session after clearing it, we'll consider that a new
+        // session - renewing the Session ensures a new Session ID gets assigned in that case:
+
+        $this->renew();
+    }
+
+    public function renew()
+    {
+        if (! $this->isRenewed()) {
+            $this->old_session_id = $this->session_id;
+            $this->session_id = UUID::create();
+        }
     }
 
     public function isNew(): bool
     {
         return $this->is_new;
+    }
+
+    public function isRenewed(): bool
+    {
+        return $this->old_session_id !== null;
+    }
+
+    public function getOldSessionID(): ?string
+    {
+        return $this->old_session_id;
     }
 
     /**

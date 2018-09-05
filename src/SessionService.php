@@ -24,6 +24,11 @@ class SessionService
     const TWO_WEEKS = 1209600;
 
     /**
+     * @var int one year in seconds
+     */
+    const ONE_YEAR = 31536000;
+
+    /**
      * @var string session cookie name (weird name as recommended by OWASP)
      */
     const COOKIE_NAME = "KSID";
@@ -34,7 +39,7 @@ class SessionService
     protected $storage;
 
     /**
-     * @var int time to live (in seconds)
+     * @var int time-to-live for session data, in storage (in seconds)
      */
     protected $ttl;
 
@@ -44,15 +49,45 @@ class SessionService
     private $secure_only;
 
     /**
+     * @var int cookie expiration time (in seconds)
+     */
+    private $expiration;
+
+    /**
+     * IMPORTANT SECURITY NOTE:
+     *
+     * We make no attempts to prevent session hijacking - see the following post for details:
+     *
+     *     https://stackoverflow.com/a/12234563/283851
+     *
+     * The default value of `false` for `$secure_only` is intended for development *only* and
+     * *must* be set to `true` in production environments!
+     *
+     * Notes regarding TTL and expiration:
+     *
+     * The `$ttl` value defines the time-to-live for the session data in storage - the default
+     * value (two weeks) is intended for "average security" applications, and you may wish to
+     * lower this for "higher security" applications.
+     *
+     * We use a separate `$expiration` value for the expiration timestamp on the cookie itself,
+     * with a very high default value of one year - this enables us to invalidate old sessions
+     * and remove them from storage, when a user returns (after the TTL) and starts a new session.
+     *
      * @param SessionStorage $storage     Session Storage adapter (for storage of raw Session Data)
      * @param int            $ttl         time to live (in seconds; defaults to two weeks)
      * @param bool           $secure_only if TRUE, the session cookie is flagged as "Secure" (SSL transport required)
+     * @param int            $expiration  cookie expiration time (in seconds)
      */
-    public function __construct(SessionStorage $storage, int $ttl = self::TWO_WEEKS, bool $secure_only = false)
-    {
+    public function __construct(
+        SessionStorage $storage,
+        int $ttl = self::TWO_WEEKS,
+        bool $secure_only = false,
+        int $expiration = self::ONE_YEAR
+    ) {
         $this->storage = $storage;
         $this->ttl = $ttl;
         $this->secure_only = $secure_only;
+        $this->expiration = $expiration;
     }
 
     /**
@@ -94,22 +129,36 @@ class SessionService
         $data = $session->getData();
 
         if (count($data) === 0) {
+            // The session is empty - it should not be stored.
+
             if (! $session->isNew()) {
+                // This session contained data previously and became empty - it should be destroyed:
+
                 $this->storage->destroy($session_id);
 
-                return $response->withAddedHeader(self::SET_COOKIE_HEADER, $this->createCookie("", 0));
+                // The cookie should be expired immediately:
+
+                $response = $response->withAddedHeader(self::SET_COOKIE_HEADER, $this->createCookie("", 0));
             }
+        } else {
+            // The session contains data - it should be stored:
 
-            return $response;
-        }
+            $this->storage->write($session_id, $data, $this->ttl);
 
-        $this->storage->write($session_id, $data, $this->ttl);
+            if ($session->isNew() || $session->isRenewed()) {
+                // We've stored a new (or renewed) session - issue a cookie with the new Session ID:
 
-        if ($session->isNew()) {
-            $response = $response->withAddedHeader(
-                self::SET_COOKIE_HEADER,
-                $this->createCookie($session_id, $this->getTime() + $this->ttl)
-            );
+                $response = $response->withAddedHeader(
+                    self::SET_COOKIE_HEADER,
+                    $this->createCookie($session_id, $this->getTime() + $this->expiration)
+                );
+
+                if ($session->isRenewed()) {
+                    // The session was renewed - destroy the data that was stored under the old Session ID:
+
+                    $this->storage->destroy($session->getOldSessionID());
+                }
+            }
         }
 
         return $response;

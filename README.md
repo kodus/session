@@ -105,28 +105,63 @@ This means you can always assume that an instance of the session model is availa
  
 #### Deleting individual session models
 
-Because session models are always available, you will never delete a session model as such. If you want to easily
-clear the state of the session model, you can add a clear method to the session model:
+Because session models are always available, you will never delete a session model directly.
+
+Instead, your models must indicate via the `SessionModel::isEmpty()` method whether your model considers
+itself to be empty - if so, the Session Service will garbage-collect it at the end of the request.
+
+If your individual session model can be "cleared", your model must define what that means - for example,
+the following model implementation supports a `clear()` method:
 
 ```php
 class UserSession implements SessionModel
 {
     private $user_id;
-    private $full_name;
-    
+
     public function clear()
     {
         unset($this->user_id);
-        unset($this->full_name);
     }
 
-    //Rest of the methods here
+    public function isEmpty(): bool
+    {
+        return empty($this->user_id);
+    }
+
+    // ...
 }
 ```
 
-#### Destroying an entire session
+#### Clearing session state
 
-In rare cases, you may wish to destroy an entire session. For example, you may wish to forcibly destroy
+You can clear an entire session, typically in a log-out controller/action:
+
+```php
+$session->clear();
+```
+
+Note that clearing the session will *orphan* any objects previously obtained via `get()`.
+
+Clearing the session also implicitly renews the session, as described below.
+
+#### Renewing sessions
+
+You can renew an existing session, typically in a log-in controller/action:
+
+```php
+$session->renew();
+```
+
+Renewing a session will *retain* the current session state, but changes the Session ID,
+and destroys the session data associated with the old Session ID.
+
+Note that periodic renewal of the Session ID is *not* recommended - issuing a new
+Session ID should be done only after authentication, e.g. after successful validation
+of user-supplied login credentials over a secure connection.
+
+#### Destroying a specific session
+
+In rare cases, you may wish to destroy a specific session. For example, you may wish to forcibly destroy
 the active session of a user who has been blocked/banned from the site by an administrator.
 
 You can do this by accessing the underlying `SessionStorage` implementation:

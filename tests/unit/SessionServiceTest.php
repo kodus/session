@@ -194,6 +194,50 @@ abstract class SessionServiceTest
     }
 
     /**
+     * Clearing the session should change the Session ID, and invalidate the previous Session ID.
+     */
+    public function renewClearedSession(UnitTester $I)
+    {
+        $service = $this->createSessionService();
+
+        $first_session = $service->createSession(new ServerRequest());
+
+        $model = $first_session->get(TestSessionModelA::class);
+
+        $model->foo = "hello";
+
+        $first_response = $service->commitSession($first_session, new Response());
+
+        $second_request = (new ServerRequest())->withCookieParams($this->parseSetCookie($first_response));
+
+        $second_session = $service->createSession($second_request);
+
+        $I->assertSame($first_session->getSessionID(), $second_session->getSessionID(),
+            "precondition: identical Session IDs before clearing");
+
+        $second_session->clear();
+
+        $I->assertEmpty($second_session->getData(), "data was cleared");
+
+        $I->assertSame($first_session->getSessionID(), $second_session->getOldSessionID(),
+            "the old Session ID is preserved internally in the model");
+
+        $I->assertNotEquals($first_session->getSessionID(), $second_session->getSessionID(),
+            "the new Session ID is different");
+
+        $second_response = $service->commitSession($second_session, new Response());
+
+        $third_request = (new ServerRequest())->withCookieParams($this->parseSetCookie($first_response));
+
+        $third_session = $service->createSession($third_request);
+
+        $I->assertNotEquals($third_session->getSessionID(), $first_session->getSessionID(),
+            "attempting to restore first Session ID should fail: first session was invalidated during second request");
+
+        $I->assertEmpty($third_session->getData(), "the new Session is empty");
+    }
+
+    /**
      * When the Session is empty, the Session ID should *not* a preserved in a cookie.
      */
     public function doNotCreateEmptySessions(UnitTester $I)

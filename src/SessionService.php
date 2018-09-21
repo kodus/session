@@ -145,6 +145,12 @@ class SessionService
 
         $data = $session->getData();
 
+        if ($session->isRenewed()) {
+            // The session was renewed - destroy the data that was stored under the old Session ID:
+
+            $this->storage->destroy($session->getOldSessionID());
+        }
+
         if (count($data) === 0) {
             // The session is empty - it should not be stored.
 
@@ -169,12 +175,6 @@ class SessionService
                     self::SET_COOKIE_HEADER,
                     $this->createCookie($session_id, $this->getTime() + $this->expiration)
                 );
-
-                if ($session->isRenewed()) {
-                    // The session was renewed - destroy the data that was stored under the old Session ID:
-
-                    $this->storage->destroy($session->getOldSessionID());
-                }
             }
         }
 

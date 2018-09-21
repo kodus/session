@@ -26,6 +26,10 @@ small amount of added workload of writing a small and simple data model.
 Write operations to the session are deffered until the end of the request, when they are saved to the storage.
 This prevents broken session states as a result of critical errors.
 
+Starting and ending sessions happens implicitly - for example, a session won't persist (and no session-cookie
+will be emitted) unless there is any data in the session; likewise, session will automatically terminate if
+session-data is cleared and/or the last session-model gets garbage-collected.
+
 ## Session models
 
 When storing data in session, the first step is to define your session model. You can think of a session model class
@@ -101,8 +105,8 @@ $user_session = $session->get(UserSession::class);
 Only one instance of a session model is available per session, and it is always available. If an instance of the 
 session model was not stored in cache, a new instance will be created and returned by `get()`.
 
-This means you can always assume that an instance of the session model is available.
- 
+This means you can assume that an instance of the session model is always available.
+
 #### Deleting individual session models
 
 Because session models are always available, you will never delete a session model directly.

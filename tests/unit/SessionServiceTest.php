@@ -178,7 +178,11 @@ abstract class SessionServiceTest
 
         $second_session = $service->createSession($second_request);
 
-        $second_session->clear();
+        $restored_model = $second_session->get(TestSessionModelA::class);
+
+        $restored_model->foo = null;
+
+        $I->assertTrue($restored_model->isEmpty(), "pre-condition: session model is empty (gets garbage-collected on commit)");
 
         $second_response = $service->commitSession($second_session, new Response());
 

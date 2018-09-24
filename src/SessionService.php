@@ -16,22 +16,22 @@ class SessionService
     /**
      * @var string
      */
-    const SET_COOKIE_HEADER = "Set-Cookie";
+    public const SET_COOKIE_HEADER = "Set-Cookie";
 
     /**
      * @var int two weeks in seconds
      */
-    const TWO_WEEKS = 1209600;
+    public const TWO_WEEKS = 1209600;
 
     /**
      * @var int one year in seconds
      */
-    const ONE_YEAR = 31536000;
+    public const ONE_YEAR = 31536000;
 
     /**
      * @var string session cookie name (weird name as recommended by OWASP)
      */
-    const COOKIE_NAME = "KSID";
+    public const COOKIE_NAME = "KSID";
 
     /**
      * @var SessionStorage $storage

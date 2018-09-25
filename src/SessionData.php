@@ -3,6 +3,7 @@
 namespace Kodus\Session;
 
 use Kodus\Helpers\UUID;
+use Kodus\Helpers\UUIDv5;
 use Kodus\Session\Exceptions\InvalidTypeException;
 use ReflectionClass;
 
@@ -12,9 +13,9 @@ use ReflectionClass;
 class SessionData implements Session
 {
     /**
-     * @var string
+     * @var string Client Session ID (UUID)
      */
-    private $session_id;
+    private $client_session_id;
 
     /**
      * @var string|null old Session ID (if this Session was renewed)
@@ -39,23 +40,31 @@ class SessionData implements Session
     private $is_new = false;
 
     /**
-     * @param string $session_id
+     * @param string $client_session_id
      * @param array  $data
      * @param bool   $is_new
      */
-    public function __construct(string $session_id, array $data, bool $is_new)
+    public function __construct(string $client_session_id, array $data, bool $is_new)
     {
-        $this->session_id = $session_id;
+        $this->client_session_id = $client_session_id;
         $this->data = $data;
         $this->is_new = $is_new;
     }
 
     /**
-     * @return string Session ID (UUID v4)
+     * @return string Session UUID (derived from Client Session UUID using a one-way hash - may be stored on the server)
      */
     public function getSessionID(): string
     {
-        return $this->session_id;
+        return SessionID::create($this->client_session_id);
+    }
+
+    /**
+     * @return string Client Session UUID (only persisted by the client in their cookie - never stored on the server)
+     */
+    public function getClientSessionID(): string
+    {
+        return $this->client_session_id;
     }
 
     /**
@@ -113,8 +122,8 @@ class SessionData implements Session
     public function renew()
     {
         if (! $this->isRenewed()) {
-            $this->old_session_id = $this->session_id;
-            $this->session_id = UUID::create();
+            $this->old_session_id = $this->getSessionID();
+            $this->client_session_id = UUID::create();
         }
     }
 

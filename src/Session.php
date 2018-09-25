@@ -51,7 +51,7 @@ interface Session
     public function renew();
 
     /**
-     * @return string Session ID (UUID v4)
+     * @return string Session UUID
      */
     public function getSessionID(): string;
 }

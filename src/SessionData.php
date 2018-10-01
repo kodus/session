@@ -60,6 +60,8 @@ class SessionData implements Session
     }
 
     /**
+     * @internal please regard the Client Session ID as a private/internal implementation detail.
+     *
      * @return string Client Session UUID (only persisted by the client in their cookie - never stored on the server)
      */
     public function getClientSessionID(): string

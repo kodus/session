@@ -1,5 +1,17 @@
 # Upgrade Notes
 
+## 3.0
+
+This release makes several efforts to harden security overall.
+
+While the API is backwards-compatible with that of the 2.x series, we consider these
+changes "breaking" in the sense that it doesn't behave the same as before, in terms of
+things like TTL in storage, and frequency/properties of the emitted session-cookie.
+
+Note that the Session ID that gets persisted (as the key) to underlying storage has changed,
+so this upgrade will invalidate any existing sessions that were started with version 2.x.
+(you may wish to manually clear the underlying cache, but that's optional.)
+
 ## 2.0
 
 This release makes changes to the internal abstraction, which affects bootstrapping of the

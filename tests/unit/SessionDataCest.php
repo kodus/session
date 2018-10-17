@@ -2,22 +2,28 @@
 
 namespace Kodus\Session\Tests\Unit;
 
+use Kodus\Helpers\UUID;
 use Kodus\Session\SessionData;
+use Kodus\Session\SessionID;
 use Kodus\Session\Tests\Unit\SessionModels\TestSessionModelA;
 use Kodus\Session\Tests\Unit\SessionModels\TestSessionModelB;
 use UnitTester;
 
 class SessionDataCest
 {
-    const SESSION_ID = "abc123";
-
     const FOO_VALUE = "hello!";
 
     public function manageSessionData(UnitTester $I)
     {
-        $session = new SessionData(self::SESSION_ID, [], true);
+        $client_session_id = UUID::create();
 
-        $I->assertSame(self::SESSION_ID, $session->getSessionID());
+        $session_id = SessionID::create($client_session_id);
+
+        $session = new SessionData($client_session_id, [], true);
+
+        $I->assertSame($client_session_id, $session->getClientSessionID());
+
+        $I->assertSame($session_id, $session->getSessionID());
 
         /**
          * @var TestSessionModelA $model
@@ -39,7 +45,7 @@ class SessionDataCest
 
         $I->assertArrayNotHasKey(TestSessionModelB::class, $data, "it discards the empty session model");
 
-        $session = new SessionData(self::SESSION_ID, $data, false);
+        $session = new SessionData($client_session_id, $data, false);
 
         $I->assertEquals($model, $session->get(TestSessionModelA::class), "it restores the model instance from data");
 

@@ -22,7 +22,8 @@
         "psr/http-server-middleware": "^1",
         "psr/simple-cache": "^1",
         "middlewares/client-ip": "^1.1",
-        "kodus/uuid-v4": "^1"
+        "kodus/uuid-v4": "^1",
+        "kodus/uuid-v5": "^1"
     },
     "require-dev": {
         "codeception/codeception": "^2",

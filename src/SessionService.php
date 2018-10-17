@@ -119,12 +119,16 @@ class SessionService
         $cookies = $request->getCookieParams();
 
         if (isset($cookies[self::COOKIE_NAME])) {
-            $session_id = $cookies[self::COOKIE_NAME];
+            $client_session_id = $cookies[self::COOKIE_NAME];
 
-            $data = $this->storage->read($session_id);
+            if (UUID::isValid($client_session_id)) {
+                $session_id = SessionID::create($client_session_id);
 
-            if (is_array($data)) {
-                return new SessionData($session_id, $data, false);
+                $data = $this->storage->read($session_id);
+
+                if (is_array($data)) {
+                    return new SessionData($client_session_id, $data, false);
+                }
             }
         }
 
@@ -141,8 +145,6 @@ class SessionService
      */
     public function commitSession(SessionData $session, ResponseInterface $response): ResponseInterface
     {
-        $session_id = $session->getSessionID();
-
         $data = $session->getData();
 
         if ($session->isRenewed()) {
@@ -157,7 +159,7 @@ class SessionService
             if (! $session->isNew()) {
                 // This session contained data previously and became empty - it should be destroyed:
 
-                $this->storage->destroy($session_id);
+                $this->storage->destroy($session->getSessionID());
 
                 // The cookie should be expired immediately:
 
@@ -166,14 +168,14 @@ class SessionService
         } else {
             // The session contains data - it should be stored:
 
-            $this->storage->write($session_id, $data, $this->ttl);
+            $this->storage->write($session->getSessionID(), $data, $this->ttl);
 
             if ($session->isNew() || $session->isRenewed()) {
                 // We've stored a new (or renewed) session - issue a cookie with the new Session ID:
 
                 $response = $response->withAddedHeader(
                     self::SET_COOKIE_HEADER,
-                    $this->createCookie($session_id, $this->getTime() + $this->expiration)
+                    $this->createCookie($session->getClientSessionID(), $this->getTime() + $this->expiration)
                 );
             }
         }

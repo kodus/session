@@ -3,6 +3,7 @@
 namespace Kodus\Session\Tests\Unit;
 
 use Kodus\Helpers\UUID;
+use Kodus\Helpers\UUIDv5;
 use Kodus\Session\SessionService;
 use Kodus\Session\SessionStorage;
 use Kodus\Session\Tests\Unit\SessionModels\TestSessionModelA;
@@ -27,7 +28,9 @@ abstract class SessionServiceTest
 
         $session = $session_service->createSession(new ServerRequest());
 
-        $I->assertTrue(UUID::isValid($session->getSessionID()), "Session ID is a valid UUID v4");
+        $I->assertTrue(UUIDv5::isValid($session->getSessionID()), "Session ID is a valid UUID v5");
+
+        $I->assertTrue(UUID::isValid($session->getClientSessionID()), "Client Session ID is a valid UUID v4");
     }
 
     /**
@@ -43,10 +46,18 @@ abstract class SessionServiceTest
         $session_data_1 = $session_service->createSession($request_1);
         $session_data_2 = $session_service->createSession($request_2);
 
+        $I->assertNotEquals($session_data_1->getClientSessionID(), $session_data_1->getSessionID(),
+            "Session ID is different from Client Session ID");
+
         $session_id_1 = $session_data_1->getSessionID();
         $session_id_2 = $session_data_2->getSessionID();
 
         $I->assertNotEquals($session_id_1, $session_id_2, "creates unique Session IDs");
+
+        $client_session_id_1 = $session_data_1->getClientSessionID();
+        $client_session_id_2 = $session_data_2->getClientSessionID();
+
+        $I->assertNotEquals($client_session_id_1, $client_session_id_2, "creates unique Client Session IDs");
     }
 
     /**
@@ -70,14 +81,16 @@ abstract class SessionServiceTest
         $first_response = $service->commitSession($first_session, new Response());
 
         $I->assertSame(
-            SessionService::COOKIE_NAME . "=" . $first_session->getSessionID() . "; Path=/; HTTPOnly; SameSite=Lax; Expires=Friday, 16-Aug-2019 13:22:47 GMT+0000",
+            SessionService::COOKIE_NAME . "=" . $first_session->getClientSessionID() . "; Path=/; HTTPOnly; SameSite=Lax; Expires=Friday, 16-Aug-2019 13:22:47 GMT+0000",
             $first_response->getHeaderLine("Set-Cookie"),
-            "committing emits a Session cookie"
+            "committing emits the Client Session ID as a cookie"
         );
 
         $second_request = (new ServerRequest())->withCookieParams($this->parseSetCookie($first_response));
 
         $second_session = $service->createSession($second_request);
+
+        $I->assertSame($first_session->getClientSessionID(), $second_session->getClientSessionID(), "second Request has same Client Session ID");
 
         $I->assertSame($first_session->getSessionID(), $second_session->getSessionID(), "second Request has same Session ID");
 
@@ -114,9 +127,9 @@ abstract class SessionServiceTest
         $first_response = $service->commitSession($first_session, new Response());
 
         $I->assertSame(
-            SessionService::COOKIE_NAME . "=" . $first_session->getSessionID() . "; Path=/; HTTPOnly; SameSite=Lax; Expires=Friday, 16-Aug-2019 13:22:47 GMT+0000",
+            SessionService::COOKIE_NAME . "=" . $first_session->getClientSessionID() . "; Path=/; HTTPOnly; SameSite=Lax; Expires=Friday, 16-Aug-2019 13:22:47 GMT+0000",
             $first_response->getHeaderLine("Set-Cookie"),
-            "committing emits a Session cookie"
+            "committing emits the Client Session ID in a cookie"
         );
 
         $second_request = (new ServerRequest())->withCookieParams($this->parseSetCookie($first_response));
@@ -124,6 +137,8 @@ abstract class SessionServiceTest
         $second_session = $service->createSession($second_request);
 
         $second_session->renew();
+
+        $I->assertNotEquals($first_session->getClientSessionID(), $second_session->getClientSessionID(), "Client Session ID has changed");
 
         $I->assertNotEquals($first_session->getSessionID(), $second_session->getSessionID(), "Session ID has changed");
 
@@ -136,9 +151,9 @@ abstract class SessionServiceTest
         $second_response = $service->commitSession($second_session, new Response());
 
         $I->assertSame(
-            SessionService::COOKIE_NAME . "=" . $second_session->getSessionID() . "; Path=/; HTTPOnly; SameSite=Lax; Expires=Friday, 16-Aug-2019 13:22:47 GMT+0000",
+            SessionService::COOKIE_NAME . "=" . $second_session->getClientSessionID() . "; Path=/; HTTPOnly; SameSite=Lax; Expires=Friday, 16-Aug-2019 13:22:47 GMT+0000",
             $second_response->getHeaderLine("Set-Cookie"),
-            "committing emits a renewed Session cookie"
+            "committing emits the renewed Client Session ID in a cookie"
         );
 
         $request_with_old_cookie = (new ServerRequest())->withCookieParams($this->parseSetCookie($first_response));
@@ -151,9 +166,9 @@ abstract class SessionServiceTest
         );
 
         $I->assertNotEquals(
-            $session_with_old_cookie->getSessionID(),
-            $first_session->getSessionID(),
-            "it must not reuse an invalid Session ID"
+            $session_with_old_cookie->getClientSessionID(),
+            $first_session->getClientSessionID(),
+            "it must not reuse an invalid Client Session ID"
         );
     }
 
@@ -267,7 +282,7 @@ abstract class SessionServiceTest
         $response = $service->commitSession($session, new Response());
 
         $I->assertSame(
-            SessionService::COOKIE_NAME . "=" . $session->getSessionID() . "; Path=/; HTTPOnly; SameSite=Lax; Domain=example.com; Secure; Expires=Friday, 16-Aug-2019 13:22:47 GMT+0000",
+            SessionService::COOKIE_NAME . "=" . $session->getClientSessionID() . "; Path=/; HTTPOnly; SameSite=Lax; Domain=example.com; Secure; Expires=Friday, 16-Aug-2019 13:22:47 GMT+0000",
             $response->getHeaderLine("Set-Cookie"),
             "applies the Secure and Domain attributes, when specified"
         );

@@ -11,7 +11,11 @@
         {
             "name": "Rasmus Schultz",
             "email": "rasc@jfmedier.dk"
-        }
+        },
+	{
+	    "name": "Bo Andersen",
+	    "email": "boan@jfmedier.dk"
+	}
     ],
     "minimum-stability": "dev",
     "prefer-stable": true,

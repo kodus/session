@@ -7,10 +7,10 @@ use Kodus\Helpers\UUIDv5;
 use Kodus\Session\SessionService;
 use Kodus\Session\SessionStorage;
 use Kodus\Session\Tests\Unit\SessionModels\TestSessionModelA;
+use Nyholm\Psr7\Response;
+use Nyholm\Psr7\ServerRequest;
 use Psr\Http\Message\ResponseInterface;
 use UnitTester;
-use Zend\Diactoros\Response;
-use Zend\Diactoros\ServerRequest;
 
 /**
  * Generic test for implementations of Kodus\Session\SessionService.
@@ -26,7 +26,7 @@ abstract class SessionServiceTest
     {
         $session_service = $this->createSessionService();
 
-        $session = $session_service->createSession(new ServerRequest());
+        $session = $session_service->createSession(new ServerRequest('GET', ''));
 
         $I->assertTrue(UUIDv5::isValid($session->getSessionID()), "Session ID is a valid UUID v5");
 
@@ -40,8 +40,8 @@ abstract class SessionServiceTest
     {
         $session_service = $this->createSessionService();
 
-        $request_1 = new ServerRequest();
-        $request_2 = new ServerRequest();
+        $request_1 = new ServerRequest('GET', '');
+        $request_2 = new ServerRequest('GET', '');
 
         $session_data_1 = $session_service->createSession($request_1);
         $session_data_2 = $session_service->createSession($request_2);
@@ -71,7 +71,7 @@ abstract class SessionServiceTest
     {
         $service = $this->createSessionService();
 
-        $first_session = $service->createSession(new ServerRequest());
+        $first_session = $service->createSession(new ServerRequest('GET', ''));
 
         $model = $first_session->get(TestSessionModelA::class);
 
@@ -86,7 +86,7 @@ abstract class SessionServiceTest
             "committing emits the Client Session ID as a cookie"
         );
 
-        $second_request = (new ServerRequest())->withCookieParams($this->parseSetCookie($first_response));
+        $second_request = (new ServerRequest('GET', ''))->withCookieParams($this->parseSetCookie($first_response));
 
         $second_session = $service->createSession($second_request);
 
@@ -118,7 +118,7 @@ abstract class SessionServiceTest
     {
         $service = $this->createSessionService();
 
-        $first_session = $service->createSession(new ServerRequest());
+        $first_session = $service->createSession(new ServerRequest('GET', ''));
 
         $model = $first_session->get(TestSessionModelA::class);
 
@@ -132,7 +132,7 @@ abstract class SessionServiceTest
             "committing emits the Client Session ID in a cookie"
         );
 
-        $second_request = (new ServerRequest())->withCookieParams($this->parseSetCookie($first_response));
+        $second_request = (new ServerRequest('GET', ''))->withCookieParams($this->parseSetCookie($first_response));
 
         $second_session = $service->createSession($second_request);
 
@@ -156,7 +156,7 @@ abstract class SessionServiceTest
             "committing emits the renewed Client Session ID in a cookie"
         );
 
-        $request_with_old_cookie = (new ServerRequest())->withCookieParams($this->parseSetCookie($first_response));
+        $request_with_old_cookie = (new ServerRequest('GET', ''))->withCookieParams($this->parseSetCookie($first_response));
 
         $session_with_old_cookie = $service->createSession($request_with_old_cookie);
 
@@ -179,7 +179,7 @@ abstract class SessionServiceTest
     {
         $service = $this->createSessionService();
 
-        $first_session = $service->createSession(new ServerRequest());
+        $first_session = $service->createSession(new ServerRequest('GET', ''));
 
         $model = $first_session->get(TestSessionModelA::class);
 
@@ -189,7 +189,7 @@ abstract class SessionServiceTest
 
         $I->assertNotEmpty($first_response->getHeaderLine("Set-Cookie"));
 
-        $second_request = (new ServerRequest())->withCookieParams($this->parseSetCookie($first_response));
+        $second_request = (new ServerRequest('GET', ''))->withCookieParams($this->parseSetCookie($first_response));
 
         $second_session = $service->createSession($second_request);
 
@@ -215,7 +215,7 @@ abstract class SessionServiceTest
     {
         $service = $this->createSessionService();
 
-        $first_session = $service->createSession(new ServerRequest());
+        $first_session = $service->createSession(new ServerRequest('GET', ''));
 
         $model = $first_session->get(TestSessionModelA::class);
 
@@ -223,7 +223,7 @@ abstract class SessionServiceTest
 
         $first_response = $service->commitSession($first_session, new Response());
 
-        $second_request = (new ServerRequest())->withCookieParams($this->parseSetCookie($first_response));
+        $second_request = (new ServerRequest('GET', ''))->withCookieParams($this->parseSetCookie($first_response));
 
         $second_session = $service->createSession($second_request);
 
@@ -242,7 +242,7 @@ abstract class SessionServiceTest
 
         $second_response = $service->commitSession($second_session, new Response());
 
-        $third_request = (new ServerRequest())->withCookieParams($this->parseSetCookie($first_response));
+        $third_request = (new ServerRequest('GET', ''))->withCookieParams($this->parseSetCookie($first_response));
 
         $third_session = $service->createSession($third_request);
 
@@ -259,7 +259,7 @@ abstract class SessionServiceTest
     {
         $session_service = $this->createSessionService();
 
-        $session_data = $session_service->createSession(new ServerRequest());
+        $session_data = $session_service->createSession(new ServerRequest('GET', ''));
 
         $response = $session_service->commitSession($session_data, new Response());
 
@@ -273,7 +273,7 @@ abstract class SessionServiceTest
     {
         $service = $this->createSessionService(true, "example.com");
 
-        $session = $service->createSession(new ServerRequest());
+        $session = $service->createSession(new ServerRequest('GET', ''));
 
         $model = $session->get(TestSessionModelA::class);
 

@@ -26,14 +26,14 @@
         "psr/http-server-middleware": "^1",
         "psr/simple-cache": "^3",
         "middlewares/client-ip": "^2",
-        "kodus/uuid-v4": "dev-upgrade-php-81 as 1.1.0",
-        "kodus/uuid-v5": "dev-upgrade-php-81 as 1.0.0"
+        "kodus/uuid-v4": "^1.2",
+        "kodus/uuid-v5": "^1.1"
     },
     "require-dev": {
         "codeception/codeception": "^5",
         "codeception/module-asserts": "^3.0",
         "nyholm/psr7": "^1.5",
-        "kodus/mock-cache": "dev-upgrade-simple-cache-3 as 1.0.1"
+        "kodus/mock-cache": "^2"
     },
     "autoload": {
         "psr-4": {

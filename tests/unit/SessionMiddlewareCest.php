@@ -9,11 +9,11 @@ use Kodus\Session\SessionMiddleware;
 use Kodus\Session\SessionService;
 use Kodus\Session\Tests\Unit\Mocks\DelegateMock;
 use Kodus\Session\Tests\Unit\SessionModels\TestSessionModelA;
+use Nyholm\Psr7\Response;
+use Nyholm\Psr7\ServerRequest;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use UnitTester;
-use Zend\Diactoros\Response;
-use Zend\Diactoros\ServerRequest;
 
 class SessionMiddlewareCest
 {
@@ -53,7 +53,7 @@ class SessionMiddlewareCest
             return new Response();
         });
 
-        $request_1 = new ServerRequest();
+        $request_1 = new ServerRequest('GET', '/');
 
         $response = $middleware->process($request_1, $delegate);
 
@@ -70,7 +70,7 @@ class SessionMiddlewareCest
             return new Response();
         };
 
-        $request_2 = (new ServerRequest())->withCookieParams($cookies);
+        $request_2 = (new ServerRequest('GET', ''))->withCookieParams($cookies);
 
         $middleware->process($request_2, $delegate);
     }

@@ -9,9 +9,9 @@ use Kodus\Session\SessionStorage;
 use Kodus\Session\Tests\Unit\SessionModels\TestSessionModelA;
 use Kodus\Session\Tests\Unit\SessionModels\TestSessionModelB;
 use Kodus\Session\Tests\Unit\SessionServiceTest;
+use Nyholm\Psr7\Response;
+use Nyholm\Psr7\ServerRequest;
 use UnitTester;
-use Zend\Diactoros\Response;
-use Zend\Diactoros\ServerRequest;
 
 class CacheSessionServiceCest extends SessionServiceTest
 {
@@ -29,7 +29,7 @@ class CacheSessionServiceCest extends SessionServiceTest
 
         $service = new SessionService($storage, 60*60, false); // Session lasts 60 minutes
 
-        $session = $service->createSession(new ServerRequest());
+        $session = $service->createSession(new ServerRequest('GET', ''));
 
         $model_1 = $session->get(TestSessionModelA::class);
         $model_1->foo = "hello life time test";
@@ -43,7 +43,7 @@ class CacheSessionServiceCest extends SessionServiceTest
 
         $cache->skipTime(30*60); // 30 minutes pass by
 
-        $session = $service->createSession((new ServerRequest())->withCookieParams($cookies));
+        $session = $service->createSession((new ServerRequest('GET', ''))->withCookieParams($cookies));
 
         $I->assertEquals($model_1, $session->get(TestSessionModelA::class));
         $I->assertEquals($model_2, $session->get(TestSessionModelB::class));
@@ -52,7 +52,7 @@ class CacheSessionServiceCest extends SessionServiceTest
 
         $cache->skipTime(30*60-1); //1 hour and 1 second since session initiated, only ½ hours since last interaction.
 
-        $session = $service->createSession((new ServerRequest())->withCookieParams($cookies));
+        $session = $service->createSession((new ServerRequest('GET', ''))->withCookieParams($cookies));
 
         $I->assertEquals($model_1, $session->get(TestSessionModelA::class));
         $I->assertEquals($model_2, $session->get(TestSessionModelB::class));
@@ -63,7 +63,7 @@ class CacheSessionServiceCest extends SessionServiceTest
 
         $cache->skipTime(5401); //Over an hour since last interaction
 
-        $session = $service->createSession((new ServerRequest())->withCookieParams($cookies));
+        $session = $service->createSession((new ServerRequest('GET', ''))->withCookieParams($cookies));
 
         $I->assertNull($session->get(TestSessionModelA::class)->foo);
         $I->assertNull($session->get(TestSessionModelB::class)->foo);

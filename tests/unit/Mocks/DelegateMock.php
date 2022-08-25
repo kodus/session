@@ -3,10 +3,10 @@
 namespace Kodus\Session\Tests\Unit\Mocks;
 
 use Closure;
+use Nyholm\Psr7\Response;
 use Psr\Http\Server\RequestHandlerInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
-use Zend\Diactoros\Response;
 
 /**
  * For testing PSR-15 middleware.

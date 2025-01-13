@@ -35,6 +35,9 @@
         "nyholm/psr7": "^1.5",
         "kodus/mock-cache": "^2"
     },
+    "scripts": {
+        "test": "codecept run"
+    },
     "autoload": {
         "psr-4": {
             "Kodus\\Session\\" : "src"

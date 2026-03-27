@@ -21,7 +21,7 @@
     "prefer-stable": true,
     "require": {
         "php": ">=8.0",
-        "psr/http-message": "^1",
+        "psr/http-message": "^1||^2",
         "psr/http-server-handler": "^1",
         "psr/http-server-middleware": "^1",
         "psr/simple-cache": "^3",
